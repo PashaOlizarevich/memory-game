@@ -56,10 +56,29 @@ export async function runMainTests() {
     assert(first.dataset.status === 'open' && counters()[0] === 'Ходы: 0', 'First click must open without a move');
     first.click();
     assert(counters()[0] === 'Ходы: 0', 'Repeated click must be ignored');
+    const selectedDeck = cardButtons();
+    const selectedState = selectedDeck.map((button) => [button.dataset.status, button.disabled, button.getAttribute('aria-label')]);
+    const selectedCounters = counters();
+    leaderboard.click();
+    assert(doc.querySelector('.app').inert && !doc.querySelector('.modal-overlay').hidden,
+      'Leaderboard must lock the board while a card is selected');
+    partner.firstElementChild.click();
+    const checkSelectedState = () => {
+      assert(cardButtons().every((button, index) => button === selectedDeck[index]), 'Leaderboard must preserve the selected deck DOM');
+      assert(JSON.stringify(cardButtons().map((button) => [button.dataset.status, button.disabled, button.getAttribute('aria-label')]))
+        === JSON.stringify(selectedState), 'Leaderboard must preserve every card state and ignore background choices');
+      assert(JSON.stringify(counters()) === JSON.stringify(selectedCounters), 'Leaderboard must preserve selected-round counters');
+    };
+    checkSelectedState();
+    doc.querySelector('.modal-close').click();
+    checkSelectedState();
+    assert(!doc.querySelector('.app').inert && doc.activeElement === leaderboard,
+      'Closing the selected-card leaderboard must restore the game and trigger focus');
     partner.click();
     assert(first.dataset.status === 'matched' && partner.dataset.status === 'matched', 'Matching cards must remain open');
     assert(counters().join('|') === 'Ходы: 1|Пары: 1 / 8', 'Match must add one move and one pair');
     passed.push('first choice, ignored repeat and matched pair');
+    passed.push('leaderboard preserves a selected card and resumes the same pair after close');
 
     const a = closed()[0];
     const b = closed().find((button) => pairId(button) !== pairId(a));
@@ -77,6 +96,40 @@ export async function runMainTests() {
     assert(elapsed >= 950 && elapsed < 2500, `Unexpected mismatch delay: ${elapsed} ms`);
     assert(first.dataset.status === 'matched' && counters().join('|') === 'Ходы: 2|Пары: 1 / 8', 'Timer must preserve matches and counters');
     passed.push('real mismatch timer, blocked third click and preserved match');
+
+    a.click();
+    const ratingMismatchStarted = performance.now();
+    b.click();
+    const ratingDeck = cardButtons();
+    const ratingCounters = counters();
+    leaderboard.click();
+    const ratingPanel = doc.querySelector('.modal-panel');
+    const ratingNodes = [...ratingPanel.querySelectorAll('*')];
+    const ratingText = ratingPanel.textContent;
+    const ratingClose = ratingPanel.querySelector('.modal-actions button');
+    ratingClose.focus();
+    assert(doc.activeElement === ratingClose, 'Leaderboard content action must accept focus');
+    await pause(750);
+    assert(a.dataset.status === 'open' && b.dataset.status === 'open', 'Opening leaderboard must not shorten mismatch delay');
+    while (a.dataset.status === 'open' && performance.now() - ratingMismatchStarted < 3000) await pause(25);
+    const ratingElapsed = performance.now() - ratingMismatchStarted;
+    assert(a.dataset.status === 'closed' && b.dataset.status === 'closed' && ratingElapsed >= 950 && ratingElapsed < 2500,
+      `Mismatch timer must continue behind leaderboard: ${ratingElapsed} ms`);
+    assert(cardButtons().every((button, index) => button === ratingDeck[index]), 'Timer must preserve deck DOM behind leaderboard');
+    assert(JSON.stringify(counters()) === JSON.stringify(ratingCounters) && first.dataset.status === 'matched',
+      'Timer behind leaderboard must preserve counters and found pairs');
+    assert(!doc.querySelector('.modal-overlay').hidden && doc.querySelector('.app').inert
+      && ratingPanel.textContent === ratingText
+      && [...ratingPanel.querySelectorAll('*')].every((node, index) => node === ratingNodes[index])
+      && ratingPanel.querySelectorAll('*').length === ratingNodes.length,
+    'Board update must preserve the open leaderboard content and its DOM nodes');
+    assert(doc.activeElement === ratingClose, 'Board timer update must preserve focused leaderboard action');
+    ratingClose.click();
+    assert(doc.querySelector('.modal-overlay').hidden && !doc.querySelector('.app').inert && doc.activeElement === leaderboard,
+      'Closing after mismatch must restore the game and trigger focus');
+    assert(a.dataset.status === 'closed' && b.dataset.status === 'closed'
+      && JSON.stringify(counters()) === JSON.stringify(ratingCounters), 'Closing rating must preserve the resolved mismatch');
+    passed.push('real mismatch timer continues behind leaderboard without changing dialog DOM or focus');
 
     a.click();
     b.click();
