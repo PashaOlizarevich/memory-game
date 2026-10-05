@@ -41,6 +41,29 @@ export function selectCard(state, cardId) {
 
   const isSecondCard = state.phase === 'one-open';
 
+  if (isSecondCard) {
+    const firstCard = state.deck.find((card) => card.id === state.firstCardId);
+
+    if (firstCard.pairId === selectedCard.pairId) {
+      return {
+        state: {
+          ...state,
+          deck: state.deck.map((card) =>
+            card.id === state.firstCardId || card.id === cardId
+              ? { ...card, status: 'matched' }
+              : card,
+          ),
+          phase: 'idle',
+          firstCardId: null,
+          secondCardId: null,
+          moves: state.moves + 1,
+          matchedPairs: state.matchedPairs + 1,
+        },
+        kind: 'matched',
+      };
+    }
+  }
+
   return {
     state: {
       ...state,
