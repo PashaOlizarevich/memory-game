@@ -377,11 +377,15 @@ test('even an invoked stale callback cannot affect a new round or clear its time
   game.restart();
   chooseMismatch(game);
   game.restart();
-  assert.equal(clear.mock.calls.length, 1);
+  assert.equal(clear.mock.callCount(), 1);
+  assert.deepEqual(clear.mock.calls[0].arguments, [1]);
   game.choose(game.getSnapshot().deck[0].id);
   const firstOpen = game.getSnapshot();
+  const firstOpenCount = events.length;
   callbacks[0]();
   assert.deepEqual(game.getSnapshot(), firstOpen);
+  assert.equal(events.length, firstOpenCount);
+  assert.equal(clear.mock.callCount(), 1);
   const second = firstOpen.deck.find((card) => card.pairId !== firstOpen.deck[0].pairId);
   game.choose(second.id);
   const waiting = game.getSnapshot();
@@ -389,31 +393,74 @@ test('even an invoked stale callback cannot affect a new round or clear its time
   callbacks[0]();
   assert.deepEqual(game.getSnapshot(), waiting);
   assert.equal(events.length, count);
+  assert.equal(clear.mock.callCount(), 1);
   callbacks[1]();
-  assert.equal(game.getSnapshot().phase, 'idle');
+  const resolved = game.getSnapshot();
+  assert.equal(resolved.phase, 'idle');
+  assert.equal(events.at(-1).kind, 'mismatch-resolved');
   assert.equal(events.length, count + 1);
   callbacks[1]();
+  assert.deepEqual(game.getSnapshot(), resolved);
   assert.equal(events.length, count + 1);
+
+  chooseMismatch(game);
+  const nextWaiting = game.getSnapshot();
+  const nextCount = events.length;
+  callbacks[0]();
+  callbacks[1]();
+  assert.deepEqual(game.getSnapshot(), nextWaiting);
+  assert.equal(events.length, nextCount);
+  game.destroy();
+  assert.equal(clear.mock.callCount(), 2);
+  assert.deepEqual(clear.mock.calls[1].arguments, [3]);
+  callbacks[2]();
+  assert.deepEqual(game.getSnapshot(), nextWaiting);
+  assert.equal(events.length, nextCount);
 });
 
 test('destroy is terminal and cancels timers, including destroy before starting', (t) => {
   t.mock.timers.enable({ apis: ['setTimeout'] });
-  const { game, events } = startGame(t);
+  const schedule = t.mock.method(globalThis, 'setTimeout');
+  const clear = t.mock.method(globalThis, 'clearTimeout');
+  let randomCalls = 0;
+  let nowCalls = 0;
+  const options = {
+    random: () => { randomCalls += 1; return 0.5; },
+    now: () => { nowCalls += 1; return 1234; },
+  };
+  const { game, events } = startGame(t, options);
   game.restart();
   chooseMismatch(game);
   const last = game.getSnapshot();
+  const count = events.length;
+  const randomBeforeDestroy = randomCalls;
+  const nowBeforeDestroy = nowCalls;
+  const { arguments: [callback], result: timerId } = schedule.mock.calls[0];
   game.destroy();
+  assert.equal(clear.mock.callCount(), 1);
+  assert.deepEqual(clear.mock.calls[0].arguments, [timerId]);
   game.destroy();
   game.restart();
   game.choose(last.deck[0].id);
   t.mock.timers.tick(1000);
+  callback();
   assert.deepEqual(game.getSnapshot(), last);
-  assert.equal(events.length, 3);
-  const { game: unstarted, events: silentEvents } = startGame(t);
+  assert.equal(events.length, count);
+  assert.equal(clear.mock.callCount(), 1);
+  assert.equal(schedule.mock.callCount(), 1);
+  assert.equal(randomCalls, randomBeforeDestroy);
+  assert.equal(nowCalls, nowBeforeDestroy);
+  const { game: unstarted, events: silentEvents } = startGame(t, options);
+  unstarted.destroy();
   unstarted.destroy();
   unstarted.restart();
+  unstarted.choose('unknown');
   assert.equal(unstarted.getSnapshot(), null);
   assert.equal(silentEvents.length, 0);
+  assert.equal(clear.mock.callCount(), 1);
+  assert.equal(schedule.mock.callCount(), 1);
+  assert.equal(randomCalls, randomBeforeDestroy);
+  assert.equal(nowCalls, nowBeforeDestroy);
 });
 
 for (const action of ['restart', 'destroy']) {
