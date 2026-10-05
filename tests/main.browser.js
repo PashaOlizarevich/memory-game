@@ -1,5 +1,8 @@
 // Exercise the actual index.html/main.js through DOM actions and browser timers.
 export async function runMainTests() {
+  const storageKey = 'memory-game.leaderboard.v1';
+  const originalResults = localStorage.getItem(storageKey);
+  localStorage.setItem(storageKey, '[]');
   const frame = document.createElement('iframe');
   frame.title = 'Проверяемая игра';
   const loaded = new Promise((resolve) => frame.addEventListener('load', resolve, { once: true }));
@@ -25,8 +28,16 @@ export async function runMainTests() {
       assert(counters().join('|') === 'Ходы: 0|Пары: 0 / 8', 'Initial counters must be zero');
     };
     checkStart();
-    assert(doc.querySelector('.button-secondary').disabled, 'Unconnected leaderboard must be unavailable');
+    const leaderboard = doc.querySelector('.app-header .button-secondary');
+    assert(!leaderboard.disabled, 'Connected leaderboard must be available');
     passed.push('actual page auto-start and zero counters');
+
+    leaderboard.click();
+    assert(doc.querySelector('.modal-title').textContent === 'Таблица лидеров', 'Leaderboard must use the common shell');
+    assert(doc.querySelector('.leaderboard-empty') && !doc.querySelector('.leaderboard-table'), 'Initial leaderboard must be empty');
+    doc.querySelector('.modal-close').click();
+    checkStart();
+    passed.push('connected empty leaderboard and close preserve the initial game');
 
     const first = closed()[0];
     const partner = closed().find((button) => button !== first && pairId(button) === pairId(first));
@@ -77,11 +88,36 @@ export async function runMainTests() {
     assert(cardButtons().every((button) => button.disabled && button.dataset.status === 'matched'), 'Finished board must stay open and blocked');
     cardButtons()[0].firstElementChild.click();
     assert(counters()[0] === 'Ходы: 8', 'Finished click changed the result');
+    const panel = doc.querySelector('.modal-panel');
+    assert(doc.querySelector('.modal-title').textContent === 'Сила памяти с вами!', 'Completion must open victory');
+    assert(panel.querySelector('.victory-result').textContent === 'Ходы: 8', 'Victory must show the completed result');
+    const saved = JSON.parse(localStorage.getItem(storageKey));
+    assert(saved.length === 1 && saved[0].moves === 8 && Number.isSafeInteger(saved[0].completedAt), 'Victory must save exactly one result');
+    doc.querySelector('.modal-close').click();
+    for (let index = 0; index < 2; index += 1) {
+      leaderboard.click();
+      assert(doc.querySelector('.modal-panel') === panel, 'Leaderboard must reuse the victory shell');
+      const rows = [...panel.querySelectorAll('tbody tr')];
+      assert(rows.length === 1 && rows[0].children[1].textContent === '8', 'Leaderboard must show the latest result');
+      panel.querySelector('.modal-actions button').click();
+    }
+    assert(JSON.stringify(JSON.parse(localStorage.getItem(storageKey))) === JSON.stringify(saved), 'Closing and reopening must not save the victory again');
+    passed.push('victory is saved once and repeated leaderboard views show the same result');
     newGame.click();
     checkStart();
     passed.push('complete game, ignored finished click and restart after completion');
+
+    for (const pair of Map.groupBy(cardButtons(), pairId).values()) pair.forEach((button) => button.click());
+    assert(JSON.parse(localStorage.getItem(storageKey)).length === 2, 'A different round must save its own result');
+    doc.querySelector('.modal-actions .button-primary').click();
+    checkStart();
+    assert(doc.querySelector('.modal-overlay').hidden && !doc.querySelector('.app').inert, 'Victory New Game must close and restore the game');
+    assert(JSON.parse(localStorage.getItem(storageKey)).length === 2, 'New Game must not add another record');
+    passed.push('another completed round saves independently and victory New Game restarts');
     return { passed };
   } finally {
     frame.remove();
+    if (originalResults === null) localStorage.removeItem(storageKey);
+    else localStorage.setItem(storageKey, originalResults);
   }
 }
