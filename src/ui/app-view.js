@@ -46,6 +46,7 @@ export function createAppView({ cards, backImageUrl, onCard, onNewGame, onLeader
 
   let roundId = null;
   let cardViews = new Map();
+  let deckListeners = new AbortController();
   let destroyed = false;
 
   function createCard(card, index) {
@@ -61,12 +62,38 @@ export function createAppView({ cards, backImageUrl, onCard, onNewGame, onLeader
     image.width = 256;
     image.height = 256;
     image.draggable = false;
+    const fallback = document.createElement('span');
+    fallback.className = 'game-card-fallback';
+    fallback.hidden = true;
+    fallback.setAttribute('aria-hidden', 'true');
+    const view = { button, image, fallback, number: index + 1, label: '', failedImageUrl: null };
+    image.addEventListener('error', () => {
+      // Events have no request URL: inspect the current image, not a prior request.
+      if (button.dataset.status === 'closed' || !image.complete || image.naturalWidth !== 0
+        || image.currentSrc !== image.src) return;
+      view.failedImageUrl = image.getAttribute('src');
+      updateFallback(view);
+    }, { signal: deckListeners.signal });
+    image.addEventListener('load', () => {
+      if (!image.complete || image.naturalWidth === 0 || image.currentSrc !== image.src) return;
+      view.failedImageUrl = null;
+      updateFallback(view);
+    }, { signal: deckListeners.signal });
     image.src = backImageUrl;
-    button.append(image);
-    return { button, image, number: index + 1 };
+    button.append(image, fallback);
+    return view;
+  }
+
+  function updateFallback({ button, image, fallback, label, failedImageUrl }) {
+    const failed = button.dataset.status !== 'closed' && failedImageUrl === image.getAttribute('src');
+    fallback.textContent = failed ? label : '';
+    fallback.hidden = !failed;
+    image.hidden = failed;
   }
 
   function createDeck(deck) {
+    deckListeners.abort();
+    deckListeners = new AbortController();
     cardViews = new Map();
     const fragment = document.createDocumentFragment();
     deck.forEach((card, index) => {
@@ -89,12 +116,15 @@ export function createAppView({ cards, backImageUrl, onCard, onNewGame, onLeader
     if (pairs.textContent !== pairsText) pairs.textContent = pairsText;
     const blocked = snapshot.phase === 'waiting-mismatch' || snapshot.phase === 'finished';
     snapshot.deck.forEach((card) => {
-      const { button, image, number } = cardViews.get(card.id);
+      const view = cardViews.get(card.id);
+      const { button, image, number } = view;
       const closed = card.status === 'closed';
       const description = cardCatalog.get(card.pairId);
       const imageUrl = closed ? backImageUrl : description.imageUrl;
-      if (image.getAttribute('src') !== imageUrl) image.src = imageUrl;
       button.dataset.status = card.status;
+      view.label = closed ? '' : description.label;
+      if (image.getAttribute('src') !== imageUrl) image.src = imageUrl;
+      updateFallback(view);
       button.disabled = blocked || !closed;
       button.setAttribute('aria-label', closed
         ? `Карточка ${number}, закрыта`
@@ -119,6 +149,7 @@ export function createAppView({ cards, backImageUrl, onCard, onNewGame, onLeader
     if (destroyed) return;
     destroyed = true;
     listeners.abort();
+    deckListeners.abort();
     root.remove();
     cardViews.clear();
   }

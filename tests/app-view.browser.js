@@ -3,7 +3,7 @@ import { createInitialState, selectCard, resolveMismatch } from '../src/game/sta
 import { createAppView } from '../src/ui/app-view.js';
 
 // Run in a browser from the project HTTP origin; no simulated DOM or dependencies.
-export function runAppViewTests() {
+export async function runAppViewTests() {
   const calls = { cards: [], newGame: 0, leaderboard: 0 };
   const view = createAppView({
     cards,
@@ -41,6 +41,11 @@ export function runAppViewTests() {
     const initialCounters = counters();
     assert(initialButtons.length === 16, 'Expected 16 cards');
     assert(initialImages.every((image) => image.getAttribute('src') === backImageUrl), 'Closed cards must show the shared back');
+    initialButtons.forEach((button, index) => {
+      assert(button.getAttribute('aria-label') === `Карточка ${index + 1}, закрыта`, 'Closed name revealed its face');
+      assert(button.firstElementChild.alt === '' && !button.firstElementChild.title, 'Decorative image revealed a face label');
+      assert(button.querySelector('.game-card-fallback').hidden && button.textContent === '', 'Closed card contains face fallback text');
+    });
     assert(initialButtons.every((button) => !button.disabled), 'Initial cards must be selectable');
     passed.push('initial deck and snapshot immutability');
 
@@ -60,6 +65,7 @@ export function runAppViewTests() {
     assert(counters().every((counter, index) => counter === initialCounters[index]), 'Render replaced counters');
     assert(view.root.querySelector('.app-header') === header && view.getNewGameButton() === newGame, 'Render replaced header controls');
     assert(firstButton.dataset.status === 'open' && firstButton.disabled, 'Opened card status or availability is wrong');
+    assert(firstButton.getAttribute('aria-label') === `Карточка 1, ${cards.find((card) => card.pairId === first.pairId).label}`, 'Opened accessible name is wrong');
     assert(firstButton.firstElementChild.getAttribute('src') === cards.find((card) => card.pairId === first.pairId).imageUrl, 'Opened card must show its face');
     assert(initialCounters[0].textContent === 'Ходы: 0', 'First card must not increase moves');
     firstButton.click();
@@ -89,6 +95,9 @@ export function runAppViewTests() {
     renderAndCheckSnapshot(state);
     assert(initialCounters[1].textContent === 'Пары: 1 / 8', 'Matched pair counter is wrong');
     assert(cardButtons().filter((button) => button.dataset.status === 'matched' && button.disabled).length === 2, 'Matched pair must stay open and disabled');
+    cardButtons().filter((button) => button.dataset.status === 'matched').forEach((button) => {
+      assert(button.getAttribute('aria-label').endsWith(', пара найдена'), 'Matched name must announce the found pair');
+    });
     passed.push('matched statuses and counters');
 
     for (const pairId of pairIds.filter((id) => id !== first.pairId)) {
@@ -124,9 +133,93 @@ export function runAppViewTests() {
     assert(JSON.stringify(calls) === beforeDestroy, 'Destroyed view still triggered callbacks');
     assert(!view.root.isConnected && board.childElementCount === 16, 'Destroyed render changed or remounted the view');
     passed.push('destroy releases listeners and prevents future updates');
+    await runImageTests(assert, passed);
     return { passed };
   } finally {
     view.destroy();
     outsideButton.remove();
+  }
+}
+
+async function runImageTests(assert, passed) {
+  const brokenUrl = 'data:image/png;base64,invalid';
+  const testCards = cards.map((card, index) => index === 0 ? { ...card, imageUrl: brokenUrl } : card);
+  const pairIds = cards.map((card) => card.pairId);
+  const imageEvent = (image, type, action) => new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      image.removeEventListener(type, onEvent);
+      reject(new Error(`Image ${type} did not arrive`));
+    }, 3000);
+    function onEvent() {
+      clearTimeout(timeout);
+      resolve();
+    }
+    image.addEventListener(type, onEvent, { once: true });
+    action();
+  });
+  const view = createAppView({ cards: testCards, backImageUrl, onCard: () => {}, onNewGame: () => {} });
+  let brokenBackView;
+  try {
+    let state = createInitialState({ pairIds, roundId: 1, random: () => 0.5 });
+    view.render(state);
+    const card = state.deck.find((item) => item.pairId === cards[0].pairId);
+    const getButton = () => [...view.root.querySelectorAll('.game-card')].find((button) => button.dataset.cardId === card.id);
+    const button = getButton();
+    const image = button.firstElementChild;
+    const fallback = button.querySelector('.game-card-fallback');
+    state = selectCard(state, card.id, 0).state;
+    await imageEvent(image, 'error', () => view.render(state));
+    assert(!fallback.hidden && fallback.textContent === cards[0].label && image.hidden, 'Broken face must show its text after opening');
+    const changes = new MutationObserver(() => {});
+    changes.observe(image, { attributes: true, attributeFilter: ['src'] });
+    view.render(state);
+    assert(changes.takeRecords().length === 0 && !fallback.hidden, 'Repeated render retried a failed image or hid its fallback');
+    changes.disconnect();
+    const different = state.deck.find((item) => item.pairId !== card.pairId);
+    state = selectCard(state, different.id, 0).state;
+    view.render(state);
+    state = resolveMismatch(state);
+    view.render(state);
+    assert(fallback.hidden && fallback.textContent === '' && !image.hidden && image.getAttribute('src') === backImageUrl, 'Closing a failed face must conceal all face text');
+    image.dispatchEvent(new Event('error'));
+    assert(fallback.hidden && fallback.textContent === '', 'Late face error exposed a closed image');
+    state = selectCard(state, card.id, 0).state;
+    view.render(state);
+    assert(!fallback.hidden, 'Reopening a failed face lost its fallback');
+    const partner = state.deck.find((item) => item.pairId === card.pairId && item.id !== card.id);
+    state = selectCard(state, partner.id, 0).state;
+    view.render(state);
+    assert(!fallback.hidden && button.getAttribute('aria-label').endsWith(', пара найдена'), 'Matched failed image lost its fallback or name');
+    passed.push('real image failure, closed secrecy, reopen and matched fallback');
+
+    await imageEvent(image, 'load', () => { image.src = cards[0].imageUrl; });
+    assert(fallback.hidden && fallback.textContent === '' && !image.hidden, 'Successful load did not restore the image');
+    image.dispatchEvent(new Event('error'));
+    assert(fallback.hidden, 'Late error replaced a healthy current image');
+    passed.push('successful image recovery and stale error rejection');
+
+    state = createInitialState({ pairIds, roundId: 2, random: () => 0.5 });
+    view.render(state);
+    await imageEvent(image, 'error', () => { image.src = brokenUrl; });
+    assert(fallback.hidden && fallback.textContent === '', 'Detached old-round image listener remained active');
+    const currentButton = view.root.querySelector('.game-card');
+    const currentImage = currentButton.firstElementChild;
+    const currentFallback = currentButton.querySelector('.game-card-fallback');
+    view.destroy();
+    currentButton.dataset.status = 'open';
+    await imageEvent(currentImage, 'error', () => { currentImage.src = brokenUrl; });
+    assert(currentFallback.hidden && currentFallback.textContent === '', 'Destroyed image listener remained active');
+    passed.push('image listeners released on new round and destroy');
+
+    brokenBackView = createAppView({ cards, backImageUrl: brokenUrl, onCard: () => {}, onNewGame: () => {} });
+    brokenBackView.render(createInitialState({ pairIds, roundId: 1, random: () => 0.5 }));
+    const closedButton = brokenBackView.root.querySelector('.game-card');
+    await imageEvent(closedButton.firstElementChild, 'error', () => {});
+    assert(closedButton.textContent === '' && closedButton.querySelector('.game-card-fallback').hidden
+      && closedButton.getAttribute('aria-label') === 'Карточка 1, закрыта', 'Broken back must never reveal its face');
+    passed.push('real shared-back failure keeps closed face concealed');
+  } finally {
+    view.destroy();
+    brokenBackView?.destroy();
   }
 }
