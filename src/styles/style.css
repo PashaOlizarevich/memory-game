@@ -63,6 +63,19 @@ button {
   font: inherit;
 }
 
+button:enabled {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: default;
+}
+
+button:focus-visible {
+  outline: 3px solid var(--color-accent);
+  outline-offset: 3px;
+}
+
 .app {
   display: flex;
   flex-direction: column;
@@ -155,6 +168,7 @@ button {
 }
 
 .game-card {
+  position: relative;
   display: grid;
   place-items: center;
   width: 100%;
@@ -167,6 +181,50 @@ button {
   color: var(--color-text);
 }
 
+.game-card[data-status="open"],
+.game-card[data-status="matched"] {
+  background-color: var(--color-surface-raised);
+}
+
+.game-card[data-status="open"] {
+  border-color: var(--color-accent);
+}
+
+.game-card[data-status="matched"] {
+  border-color: var(--color-success);
+}
+
+.game-card[data-status="matched"]::after {
+  content: "✓" / "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: grid;
+  place-items: center;
+  width: 11%;
+  height: 11%;
+  color: var(--color-success);
+  font-size: clamp(6px, 1vw, 12px);
+  font-weight: var(--font-weight-bold);
+  line-height: 1;
+  pointer-events: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .game-card[data-status="closed"]:enabled:hover {
+    border-color: var(--color-accent);
+  }
+
+  .button-secondary:enabled:hover {
+    background-color: var(--color-surface-raised);
+    border-color: var(--color-accent);
+  }
+
+  .button-primary:enabled:hover {
+    box-shadow: 0 0 0 2px var(--color-accent);
+  }
+}
+
 .game-card-image {
   width: 78%;
   height: 78%;
@@ -177,4 +235,8 @@ button {
   max-width: 90%;
   overflow-wrap: anywhere;
   text-align: center;
+}
+
+.game-card[data-status="matched"] .game-card-fallback {
+  max-width: 78%;
 }
