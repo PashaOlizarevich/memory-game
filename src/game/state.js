@@ -22,15 +22,24 @@ export function createInitialState({ pairIds, roundId, random = Math.random }) {
 }
 
 export function selectCard(state, cardId) {
-  if (state.phase !== 'idle') {
+  if (
+    (state.phase !== 'idle' && state.phase !== 'one-open') ||
+    state.secondCardId !== null
+  ) {
     return { state, kind: 'ignored' };
   }
 
   const selectedCard = state.deck.find((card) => card.id === cardId);
 
-  if (!selectedCard || selectedCard.status !== 'closed') {
+  if (
+    !selectedCard ||
+    selectedCard.status !== 'closed' ||
+    cardId === state.firstCardId
+  ) {
     return { state, kind: 'ignored' };
   }
+
+  const isSecondCard = state.phase === 'one-open';
 
   return {
     state: {
@@ -39,8 +48,10 @@ export function selectCard(state, cardId) {
         card.id === cardId ? { ...card, status: 'open' } : card,
       ),
       phase: 'one-open',
-      firstCardId: cardId,
+      firstCardId: isSecondCard ? state.firstCardId : cardId,
+      secondCardId: isSecondCard ? cardId : null,
+      moves: state.moves + (isSecondCard ? 1 : 0),
     },
-    kind: 'first-opened',
+    kind: isSecondCard ? 'second-opened' : 'first-opened',
   };
 }
