@@ -28,7 +28,8 @@ export function createModal({ backgroundRoot }) {
   const closeButton = document.createElement('button');
   closeButton.type = 'button';
   closeButton.className = 'button modal-close';
-  closeButton.textContent = 'Закрыть';
+  closeButton.textContent = '×';
+  closeButton.setAttribute('aria-label', 'Закрыть');
   header.append(heading, closeButton);
 
   const contentRoot = document.createElement('div');

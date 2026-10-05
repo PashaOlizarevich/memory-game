@@ -242,6 +242,126 @@ button:focus-visible {
   max-width: 78%;
 }
 
+.modal-overlay:not([hidden]) {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: grid;
+  place-items: center;
+  padding: var(--space-4);
+  background-color: rgba(7, 11, 20, 0.8);
+}
+
+.modal-panel {
+  width: 100%;
+  max-width: 480px;
+  max-height: calc(100vh - 32px);
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-color: var(--color-border) var(--color-surface);
+  scrollbar-width: thin;
+  padding: var(--space-5);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-panel);
+  background-color: var(--color-surface);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.45);
+}
+
+.modal-header {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+.modal-title {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  color: var(--color-title);
+  font-size: 24px;
+  line-height: var(--line-height-title);
+  overflow-wrap: anywhere;
+}
+
+.modal-close {
+  flex: 0 0 44px;
+  width: 44px;
+  padding: 0;
+  font-size: 28px;
+  line-height: 1;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .modal-close:enabled:hover {
+    border-color: var(--color-accent);
+  }
+}
+
+.modal-description,
+.leaderboard-empty,
+.modal-persistence {
+  margin: 0;
+}
+
+.modal-description {
+  color: var(--color-text-muted);
+}
+
+.victory-result {
+  margin: var(--space-3) 0 0;
+  color: var(--color-success);
+  font-size: var(--font-size-counter);
+  font-weight: var(--font-weight-bold);
+  font-variant-numeric: tabular-nums;
+}
+
+.leaderboard-empty {
+  margin-top: var(--space-4);
+}
+
+.modal-persistence {
+  margin-top: var(--space-4);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-label);
+  line-height: var(--line-height-label);
+}
+
+.modal-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-top: var(--space-5);
+}
+
+.leaderboard-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+.leaderboard-table caption {
+  margin-bottom: var(--space-4);
+  text-align: left;
+}
+
+.leaderboard-table th,
+.leaderboard-table td {
+  padding: var(--space-2) var(--space-1);
+  border-bottom: 1px solid var(--color-border);
+  text-align: center;
+}
+
+.leaderboard-table th {
+  color: var(--color-text-muted);
+  font-weight: var(--font-weight-bold);
+}
+
+.leaderboard-table td:last-child {
+  white-space: nowrap;
+}
+
 @media (max-width: 767px) {
   :root {
     --font-size-title: 24px;
@@ -287,6 +407,19 @@ button:focus-visible {
   .game-card-fallback {
     font-size: 11px;
     line-height: 1.2;
+  }
+
+  .modal-panel {
+    padding: var(--space-4);
+  }
+
+  .modal-close {
+    width: 44px;
+  }
+
+  .modal-actions {
+    flex-direction: column;
+    gap: var(--space-2);
   }
 }
 
