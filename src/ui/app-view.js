@@ -82,8 +82,10 @@ export function createAppView({ cards, backImageUrl, onCard, onNewGame, onLeader
       createDeck(snapshot.deck);
       roundId = snapshot.roundId;
     }
-    moves.textContent = `Ходы: ${snapshot.moves}`;
-    pairs.textContent = `Пары: ${snapshot.matchedPairs} / 8`;
+    const movesText = `Ходы: ${snapshot.moves}`;
+    const pairsText = `Пары: ${snapshot.matchedPairs} / 8`;
+    if (moves.textContent !== movesText) moves.textContent = movesText;
+    if (pairs.textContent !== pairsText) pairs.textContent = pairsText;
     const blocked = snapshot.phase === 'waiting-mismatch' || snapshot.phase === 'finished';
     snapshot.deck.forEach((card) => {
       const { button, image, number } = cardViews.get(card.id);
