@@ -79,7 +79,6 @@ test('all choices are blocked during mismatch and resume after resolution', () =
 });
 
 test('finished phase blocks even closed cards without changing the result', () => {
-  // The transition to finished belongs to implementation step 12.
   // Keep closed cards here to verify the phase guard independently of status.
   const finished = { ...startRound(), phase: 'finished', completedAt: 1000 };
 

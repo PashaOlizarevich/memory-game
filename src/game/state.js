@@ -21,7 +21,7 @@ export function createInitialState({ pairIds, roundId, random = Math.random }) {
   };
 }
 
-export function selectCard(state, cardId) {
+export function selectCard(state, cardId, completedAt) {
   if (
     (state.phase !== 'idle' && state.phase !== 'one-open') ||
     state.secondCardId !== null
@@ -45,6 +45,9 @@ export function selectCard(state, cardId) {
     const firstCard = state.deck.find((card) => card.id === state.firstCardId);
 
     if (firstCard.pairId === selectedCard.pairId) {
+      const matchedPairs = state.matchedPairs + 1;
+      const isFinished = matchedPairs === 8;
+
       return {
         state: {
           ...state,
@@ -53,13 +56,14 @@ export function selectCard(state, cardId) {
               ? { ...card, status: 'matched' }
               : card,
           ),
-          phase: 'idle',
+          phase: isFinished ? 'finished' : 'idle',
           firstCardId: null,
           secondCardId: null,
           moves: state.moves + 1,
-          matchedPairs: state.matchedPairs + 1,
+          matchedPairs,
+          completedAt: isFinished ? completedAt : state.completedAt,
         },
-        kind: 'matched',
+        kind: isFinished ? 'finished' : 'matched',
       };
     }
   }
