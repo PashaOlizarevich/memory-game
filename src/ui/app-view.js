@@ -56,6 +56,21 @@ export function createAppView({ cards, backImageUrl, onCard, onNewGame, onLeader
     button.dataset.cardId = card.id;
     button.dataset.status = 'closed';
     button.setAttribute('aria-label', `Карточка ${index + 1}, закрыта`);
+    const inner = document.createElement('span');
+    inner.className = 'game-card-inner';
+    inner.setAttribute('aria-hidden', 'true');
+    const back = document.createElement('span');
+    back.className = 'game-card-side game-card-back';
+    const backImage = document.createElement('img');
+    backImage.className = 'game-card-back-image';
+    backImage.alt = '';
+    backImage.width = 256;
+    backImage.height = 256;
+    backImage.draggable = false;
+    backImage.src = backImageUrl;
+    back.append(backImage);
+    const face = document.createElement('span');
+    face.className = 'game-card-side game-card-face';
     const image = document.createElement('img');
     image.className = 'game-card-image';
     image.alt = '';
@@ -79,8 +94,9 @@ export function createAppView({ cards, backImageUrl, onCard, onNewGame, onLeader
       view.failedImageUrl = null;
       updateFallback(view);
     }, { signal: deckListeners.signal });
-    image.src = backImageUrl;
-    button.append(image, fallback);
+    face.append(image, fallback);
+    inner.append(back, face);
+    button.append(inner);
     return view;
   }
 
@@ -120,10 +136,10 @@ export function createAppView({ cards, backImageUrl, onCard, onNewGame, onLeader
       const { button, image, number } = view;
       const closed = card.status === 'closed';
       const description = cardCatalog.get(card.pairId);
-      const imageUrl = closed ? backImageUrl : description.imageUrl;
       button.dataset.status = card.status;
       view.label = closed ? '' : description.label;
-      if (image.getAttribute('src') !== imageUrl) image.src = imageUrl;
+      // Keep the face during the return flip; the back has its own image.
+      if (!closed && image.getAttribute('src') !== description.imageUrl) image.src = description.imageUrl;
       updateFallback(view);
       button.disabled = blocked || !closed;
       button.setAttribute('aria-label', closed
