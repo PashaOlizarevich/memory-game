@@ -70,11 +70,29 @@ export function selectCard(state, cardId) {
       deck: state.deck.map((card) =>
         card.id === cardId ? { ...card, status: 'open' } : card,
       ),
-      phase: 'one-open',
+      phase: isSecondCard ? 'waiting-mismatch' : 'one-open',
       firstCardId: isSecondCard ? state.firstCardId : cardId,
       secondCardId: isSecondCard ? cardId : null,
       moves: state.moves + (isSecondCard ? 1 : 0),
     },
-    kind: isSecondCard ? 'second-opened' : 'first-opened',
+    kind: isSecondCard ? 'mismatch' : 'first-opened',
+  };
+}
+
+export function resolveMismatch(state) {
+  if (state.phase !== 'waiting-mismatch') {
+    return state;
+  }
+
+  return {
+    ...state,
+    deck: state.deck.map((card) =>
+      card.id === state.firstCardId || card.id === state.secondCardId
+        ? { ...card, status: 'closed' }
+        : card,
+    ),
+    phase: 'idle',
+    firstCardId: null,
+    secondCardId: null,
   };
 }
