@@ -174,3 +174,83 @@ test('invalid additions are rejected before reading, writing or changing valid r
   assert.deepEqual(storage.writes, []);
   assert.deepEqual(JSON.parse(storage.values.get(key)), [valid]);
 });
+
+test('localStorage access denial switches to memory once and never retries', (t) => {
+  const storage = useStorage(t);
+  let attempts = 0;
+  const available = window.localStorage;
+  Object.defineProperty(window, 'localStorage', {
+    configurable: true,
+    get() { attempts += 1; throw new Error('Storage access denied'); },
+  });
+  const store = createLeaderboardStore();
+  assert.equal(attempts, 0);
+  assert.deepEqual(store.getResults(), { results: [], persistence: 'memory' });
+  Object.defineProperty(window, 'localStorage', { configurable: true, value: available });
+  assert.deepEqual(store.addResult({ moves: 8, completedAt: 0 }), {
+    results: [{ moves: 8, completedAt: 0 }], persistence: 'memory',
+  });
+  assert.equal(store.getResults().persistence, 'memory');
+  assert.equal(attempts, 1);
+  assert.deepEqual(storage.reads, []);
+  assert.deepEqual(storage.writes, []);
+});
+
+test('read failure allows immediate additions and does not replace memory with old storage', (t) => {
+  const storage = useStorage(t, [[key, JSON.stringify([{ moves: 100, completedAt: 10 }])]]);
+  const originalRead = window.localStorage.getItem;
+  let attempts = 0;
+  window.localStorage.getItem = () => { attempts += 1; throw new Error('Read failed'); };
+  const store = createLeaderboardStore();
+  assert.deepEqual(store.addResult({ moves: 8, completedAt: 0 }), {
+    results: [{ moves: 8, completedAt: 0 }], persistence: 'memory',
+  });
+  window.localStorage.getItem = originalRead;
+  store.addResult({ moves: 9, completedAt: 1 });
+  assert.deepEqual(store.getResults().results, [{ moves: 8, completedAt: 0 }, { moves: 9, completedAt: 1 }]);
+  assert.equal(attempts, 1);
+  assert.deepEqual(storage.reads, []);
+  assert.deepEqual(storage.writes, []);
+});
+
+test('write failure retains loaded and new results with top-ten normalization and independent copies', (t) => {
+  const old = { moves: 20, completedAt: 0 };
+  const storage = useStorage(t, [[key, JSON.stringify([old])]]);
+  const originalWrite = window.localStorage.setItem;
+  let attempts = 0;
+  window.localStorage.setItem = () => { attempts += 1; throw new Error('Quota exceeded'); };
+  const store = createLeaderboardStore();
+  const newResult = { moves: 8, completedAt: 0 };
+  const added = store.addResult(newResult);
+  assert.deepEqual(added, { results: [newResult, old], persistence: 'memory' });
+  newResult.moves = 1000;
+  added.results[0].moves = 2000;
+  window.localStorage.setItem = originalWrite;
+  for (let moves = 9; moves <= 19; moves += 1) store.addResult({ moves, completedAt: moves });
+  assert.deepEqual(store.getResults().results.map((result) => result.moves), [8, 9, 10, 11, 12, 13, 14, 15, 16, 17]);
+  assert.equal(store.getResults().persistence, 'memory');
+  assert.throws(() => store.addResult({ moves: 7, completedAt: 0 }), TypeError);
+  assert.equal(store.getResults().results.length, 10);
+  assert.equal(attempts, 1);
+  assert.deepEqual(storage.reads, [key]);
+  assert.deepEqual(storage.writes, []);
+  assert.deepEqual(JSON.parse(storage.values.get(key)), [old]);
+});
+
+test('access denial during a write preserves the successfully loaded session', (t) => {
+  const old = { moves: 9, completedAt: 100 };
+  const storage = useStorage(t, [[key, JSON.stringify([old])]]);
+  const store = createLeaderboardStore();
+  assert.deepEqual(store.getResults().results, [old]);
+  let attempts = 0;
+  Object.defineProperty(window, 'localStorage', {
+    configurable: true,
+    get() { attempts += 1; throw new Error('Access revoked'); },
+  });
+  assert.deepEqual(store.addResult({ moves: 8, completedAt: 0 }), {
+    results: [{ moves: 8, completedAt: 0 }, old], persistence: 'memory',
+  });
+  assert.equal(store.getResults().persistence, 'memory');
+  assert.equal(attempts, 1);
+  assert.deepEqual(storage.writes, []);
+});

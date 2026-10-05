@@ -31,13 +31,23 @@ function normalizeResults(results) {
 
 export function createLeaderboardStore() {
   let results;
+  let persistence = 'persistent';
 
   function loadResults() {
     if (results !== undefined) {
       return;
     }
 
-    const storedResults = window.localStorage.getItem(storageKey);
+    let storedResults;
+
+    try {
+      storedResults = window.localStorage.getItem(storageKey);
+    } catch {
+      results = [];
+      persistence = 'memory';
+      return;
+    }
+
     let parsedResults;
 
     try {
@@ -54,7 +64,7 @@ export function createLeaderboardStore() {
 
     return {
       results: results.map(copyResult),
-      persistence: 'persistent',
+      persistence,
     };
   }
 
@@ -65,7 +75,13 @@ export function createLeaderboardStore() {
 
     loadResults();
     results = normalizeResults([...results, result]);
-    window.localStorage.setItem(storageKey, JSON.stringify(results));
+    if (persistence === 'persistent') {
+      try {
+        window.localStorage.setItem(storageKey, JSON.stringify(results));
+      } catch {
+        persistence = 'memory';
+      }
+    }
 
     return getResults();
   }
