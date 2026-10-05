@@ -197,29 +197,85 @@ test('ignored choices do not notify; matching and completion use state rules and
   assert.equal(events.length, 17);
 });
 
-test('a mismatch blocks immediately and resolves once after the default 1000 ms', (t) => {
+test('each mismatch has one 1000 ms timer; callback and rapid choices cannot extend it', (t) => {
   t.mock.timers.enable({ apis: ['setTimeout'] });
-  const { game, events } = startGame(t);
+  const schedule = t.mock.method(globalThis, 'setTimeout');
+  const events = [];
+  const { game } = startGame(t, {
+    onChange: (snapshot, kind) => {
+      events.push({ snapshot, kind });
+      if (kind === 'mismatch') {
+        const count = events.length;
+        for (const card of snapshot.deck) game.choose(card.id);
+        game.choose('unknown');
+        assert.deepEqual(game.getSnapshot(), snapshot);
+        assert.equal(events.length, count);
+      }
+    },
+  });
   game.restart();
-  chooseMismatch(game);
+  game.choose('unknown');
+  const matched = game.getSnapshot().deck.filter((card) => card.pairId === pairIds[0]);
+  game.choose(matched[0].id);
+  game.choose(matched[0].id);
+  assert.equal(schedule.mock.callCount(), 0);
+  game.choose(matched[1].id);
+  game.choose(matched[1].id);
+  assert.equal(schedule.mock.callCount(), 0);
+
+  const unmatched = game.getSnapshot().deck.filter((card) => card.status === 'closed');
+  const first = unmatched[0];
+  const second = unmatched.find((card) => card.pairId !== first.pairId);
+  game.choose(first.id);
+  assert.equal(schedule.mock.callCount(), 0);
+  game.choose(second.id);
   const waiting = game.getSnapshot();
   assert.equal(waiting.phase, 'waiting-mismatch');
-  assert.equal(waiting.moves, 1);
+  assert.equal(waiting.moves, 2);
+  assert.equal(waiting.matchedPairs, 1);
   assert.equal(waiting.deck.filter((card) => card.status === 'open').length, 2);
+  assert.equal(schedule.mock.callCount(), 1);
+  assert.equal(schedule.mock.calls[0].arguments[1], 1000);
+  const count = events.length;
   for (const card of waiting.deck) game.choose(card.id);
-  assert.equal(events.length, 3);
-  t.mock.timers.tick(999);
+  t.mock.timers.tick(500);
+  for (const card of waiting.deck) game.choose(card.id);
+  game.choose('unknown');
+  assert.equal(schedule.mock.callCount(), 1);
+  assert.equal(events.length, count);
+  t.mock.timers.tick(499);
   assert.deepEqual(game.getSnapshot(), waiting);
+  assert.equal(events.length, count);
   t.mock.timers.tick(1);
   assert.equal(events.at(-1).kind, 'mismatch-resolved');
-  assert.equal(game.getSnapshot().phase, 'idle');
-  assert.equal(game.getSnapshot().moves, 1);
-  assert.equal(game.getSnapshot().secondCardId, null);
-  assert.ok(game.getSnapshot().deck.every((card) => card.status === 'closed'));
+  const resolved = game.getSnapshot();
+  assert.equal(resolved.phase, 'idle');
+  assert.equal(resolved.moves, waiting.moves);
+  assert.equal(resolved.matchedPairs, waiting.matchedPairs);
+  assert.equal(resolved.firstCardId, null);
+  assert.equal(resolved.secondCardId, null);
+  assert.deepEqual(resolved.deck.filter((card) => card.status === 'matched'),
+    waiting.deck.filter((card) => card.status === 'matched'));
+  assert.ok(resolved.deck.filter((card) => card.status !== 'matched')
+    .every((card) => card.status === 'closed'));
   t.mock.timers.tick(1000);
-  assert.equal(events.length, 4);
-  game.choose(game.getSnapshot().deck[0].id);
+  assert.equal(events.length, count + 1);
+  assert.deepEqual(game.getSnapshot(), resolved);
+
+  game.choose(first.id);
   assert.equal(game.getSnapshot().phase, 'one-open');
+  assert.equal(schedule.mock.callCount(), 1);
+  game.choose(second.id);
+  assert.equal(schedule.mock.callCount(), 2);
+  assert.equal(schedule.mock.calls[1].arguments[1], 1000);
+  const nextWaiting = game.getSnapshot();
+  t.mock.timers.tick(999);
+  assert.deepEqual(game.getSnapshot(), nextWaiting);
+  t.mock.timers.tick(1);
+  assert.equal(game.getSnapshot().phase, 'idle');
+  assert.equal(game.getSnapshot().moves, 3);
+  assert.equal(game.getSnapshot().matchedPairs, 1);
+  assert.equal(events.filter((event) => event.kind === 'mismatch-resolved').length, 2);
 });
 
 test('restart cancels the pending timer and new mismatch keeps its own deadline', (t) => {
