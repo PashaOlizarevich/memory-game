@@ -9,10 +9,11 @@
   <body>
     <script type="module">
       import { runModalTests } from './modal.browser.js';
+      import { runModalFocusTests } from './modal-focus.browser.js';
 
       const result = document.createElement('pre');
       try {
-        const { passed } = runModalTests();
+        const passed = [...runModalTests().passed, ...runModalFocusTests().passed];
         result.dataset.result = 'passed';
         result.textContent = `PASS: ${passed.length} scenarios\n${passed.join('\n')}`;
       } catch (error) {
