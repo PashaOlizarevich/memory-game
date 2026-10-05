@@ -27,6 +27,17 @@ export async function runMainTests() {
       assert(cardButtons().every((button) => !button.disabled), 'Initial cards must be selectable');
       assert(counters().join('|') === 'Ходы: 0|Пары: 0 / 8', 'Initial counters must be zero');
     };
+    const checkRestart = (button) => {
+      const previousDeck = cardButtons();
+      const previousRound = Number(previousDeck[0].dataset.cardId.split(':')[0]);
+      const previousResults = localStorage.getItem(storageKey);
+      button.click();
+      checkStart();
+      assert(cardButtons().every((card) => !previousDeck.includes(card)
+        && Number(card.dataset.cardId.split(':')[0]) === previousRound + 1),
+      'One New Game click must immediately replace the deck with exactly the next round');
+      assert(localStorage.getItem(storageKey) === previousResults, 'Restart must preserve saved results exactly');
+    };
     checkStart();
     const leaderboard = doc.querySelector('.app-header .button-secondary');
     assert(!leaderboard.disabled, 'Connected leaderboard must be available');
@@ -69,18 +80,14 @@ export async function runMainTests() {
 
     a.click();
     b.click();
-    const oldDeck = cardButtons();
-    newGame.click();
-    checkStart();
-    assert(cardButtons().every((button) => !oldDeck.includes(button)), 'Restart must replace the old round');
+    checkRestart(newGame);
     const current = cardButtons()[0];
     current.click();
     await pause(1100);
     assert(current.dataset.status === 'open' && counters()[0] === 'Ходы: 0', 'Old timeout changed the new round selection');
     passed.push('restart during mismatch and unchanged new choice after old deadline');
 
-    newGame.click();
-    checkStart();
+    checkRestart(newGame);
     const groups = Map.groupBy(cardButtons(), pairId);
     assert(groups.size === 8 && [...groups.values()].every((pair) => pair.length === 2), 'Expected eight pairs');
     for (const pair of groups.values()) pair.forEach((button) => button.click());
@@ -103,17 +110,41 @@ export async function runMainTests() {
     }
     assert(JSON.stringify(JSON.parse(localStorage.getItem(storageKey))) === JSON.stringify(saved), 'Closing and reopening must not save the victory again');
     passed.push('victory is saved once and repeated leaderboard views show the same result');
-    newGame.click();
-    checkStart();
+    checkRestart(newGame);
     passed.push('complete game, ignored finished click and restart after completion');
 
+    const htmlStyle = doc.documentElement.style.cssText;
+    const bodyStyle = doc.body.style.cssText;
+    doc.documentElement.style.setProperty('overflow', 'scroll', 'important');
+    doc.body.style.setProperty('overflow-y', 'auto');
+    const expectedHtmlStyle = doc.documentElement.style.cssText;
+    const expectedBodyStyle = doc.body.style.cssText;
     for (const pair of Map.groupBy(cardButtons(), pairId).values()) pair.forEach((button) => button.click());
     assert(JSON.parse(localStorage.getItem(storageKey)).length === 2, 'A different round must save its own result');
-    doc.querySelector('.modal-actions .button-primary').click();
-    checkStart();
+    assert(doc.querySelector('.app').inert && panel.contains(doc.activeElement), 'Victory must lock the game and focus its dialog');
+    assert(doc.documentElement.style.overflow === 'hidden' && doc.body.style.overflow === 'hidden', 'Victory must lock both scroll surfaces');
+    checkRestart(doc.querySelector('.modal-actions .button-primary'));
     assert(doc.querySelector('.modal-overlay').hidden && !doc.querySelector('.app').inert, 'Victory New Game must close and restore the game');
-    assert(JSON.parse(localStorage.getItem(storageKey)).length === 2, 'New Game must not add another record');
+    assert(doc.activeElement === newGame, 'Victory New Game must restore focus to the header action');
+    assert(doc.documentElement.style.cssText === expectedHtmlStyle && doc.body.style.cssText === expectedBodyStyle,
+      'Victory New Game must restore original overflow values and priorities');
+    doc.documentElement.style.cssText = htmlStyle;
+    doc.body.style.cssText = bodyStyle;
     passed.push('another completed round saves independently and victory New Game restarts');
+
+    cardButtons()[0].click();
+    checkRestart(newGame);
+    for (const pair of Map.groupBy(cardButtons(), pairId).values()) pair.forEach((button) => button.click());
+    assert(JSON.parse(localStorage.getItem(storageKey)).length === 3, 'Repeated completion must save only its own result');
+    checkRestart(doc.querySelector('.modal-actions .button-primary'));
+    assert(doc.querySelector('.modal-overlay').hidden && !doc.querySelector('.app').inert
+      && doc.activeElement === newGame, 'Repeated victory restart must release the dialog and restore focus');
+    assert(doc.documentElement.style.cssText === htmlStyle && doc.body.style.cssText === bodyStyle,
+      'Repeated victory restart must restore the default scroll declarations');
+    cardButtons()[0].click();
+    assert(cardButtons().filter((button) => button.dataset.status === 'open').length === 1,
+      'The new round must accept a choice immediately after victory restart');
+    passed.push('repeated header and victory restarts create one round per click without duplicate handlers');
     return { passed };
   } finally {
     frame.remove();
