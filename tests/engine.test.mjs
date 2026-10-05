@@ -74,6 +74,98 @@ test('snapshot and notification mutations cannot change the current or later gam
   assert.equal(initial.deck[0].status, 'closed');
 });
 
+test('every notification reflects current state and isolates mutations inside its callback', (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const kinds = [];
+  const notifications = [];
+  const { game } = startGame(t, {
+    now: () => 1234,
+    onChange: (snapshot, kind) => {
+      const current = game.getSnapshot();
+      assert.deepEqual(snapshot, current);
+      assert.notEqual(snapshot, current);
+      assert.notEqual(snapshot.deck, current.deck);
+      snapshot.deck.forEach((card, index) => {
+        assert.notEqual(card, current.deck[index]);
+        card.id = 'changed';
+        card.pairId = 'changed';
+        card.status = 'closed';
+      });
+      snapshot.deck.length = 0;
+      snapshot.roundId = -1;
+      snapshot.phase = 'finished';
+      snapshot.firstCardId = 'changed';
+      snapshot.secondCardId = 'changed';
+      snapshot.moves = 100;
+      snapshot.matchedPairs = 100;
+      snapshot.completedAt = -1;
+      assert.deepEqual(game.getSnapshot(), current);
+      notifications.push(snapshot);
+      kinds.push(kind);
+    },
+  });
+  game.restart();
+  chooseMismatch(game);
+  t.mock.timers.tick(1000);
+  for (const pairId of pairIds) {
+    const pair = game.getSnapshot().deck.filter((card) => card.pairId === pairId);
+    game.choose(pair[0].id);
+    game.choose(pair[1].id);
+  }
+  assert.deepEqual(kinds, [
+    'started', 'first-opened', 'mismatch', 'mismatch-resolved',
+    ...pairIds.flatMap((_pairId, index) => [
+      'first-opened', index === 7 ? 'finished' : 'matched',
+    ]),
+  ]);
+  assert.equal(game.getSnapshot().moves, 9);
+  assert.equal(game.getSnapshot().matchedPairs, 8);
+  assert.equal(game.getSnapshot().completedAt, 1234);
+  game.restart();
+  const restarted = game.getSnapshot();
+  notifications.forEach((snapshot) => {
+    snapshot.deck.push({ id: 'injected', pairId: 'changed', status: 'matched' });
+    snapshot.moves = -1;
+  });
+  assert.deepEqual(game.getSnapshot(), restarted);
+});
+
+test('retained notifications and reads preserve history across choices, timeout and restart', (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const history = [];
+  const retain = (snapshot) => {
+    history.push({ snapshot, expected: structuredClone(snapshot) });
+  };
+  const { game } = startGame(t, { onChange: retain });
+  const verifyHistory = () => {
+    history.forEach(({ snapshot, expected }) => assert.deepEqual(snapshot, expected));
+    const current = game.getSnapshot();
+    retain(current);
+    history.slice(0, -1).forEach(({ snapshot }) => {
+      assert.notEqual(current, snapshot);
+      assert.notEqual(current.deck, snapshot.deck);
+      current.deck.forEach((card) => {
+        assert.ok(!snapshot.deck.includes(card));
+      });
+    });
+  };
+  game.restart();
+  verifyHistory();
+  chooseMismatch(game);
+  verifyHistory();
+  t.mock.timers.tick(1000);
+  verifyHistory();
+  for (const pairId of pairIds) {
+    const pair = game.getSnapshot().deck.filter((card) => card.pairId === pairId);
+    game.choose(pair[0].id);
+    verifyHistory();
+    game.choose(pair[1].id);
+    verifyHistory();
+  }
+  game.restart();
+  verifyHistory();
+});
+
 test('ignored choices do not notify; matching and completion use state rules and now', (t) => {
   let time = 0;
   const { game, events } = startGame(t, { now: () => time });
