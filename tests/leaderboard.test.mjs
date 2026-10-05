@@ -90,3 +90,87 @@ test('identical results from distinct finished games are retained', (t) => {
   store.addResult(result);
   assert.deepEqual(store.addResult(result).results, [result, result]);
 });
+
+test('malformed JSON and non-array values load as an empty list without rewriting storage', (t) => {
+  const storage = useStorage(t);
+  for (const raw of ['{broken', '', 'null', '{}', '42', '"text"', 'true']) {
+    storage.values.set(key, raw);
+    assert.deepEqual(createLeaderboardStore().getResults(), { results: [], persistence: 'persistent' });
+    assert.equal(storage.values.get(key), raw);
+  }
+  assert.deepEqual(storage.writes, []);
+});
+
+test('loading filters invalid records, accepts valid bounds and strips extra fields', (t) => {
+  const valid = [
+    { moves: 8, completedAt: 0, roundId: 123 },
+    { moves: Number.MAX_SAFE_INTEGER, completedAt: 8640000000000000 },
+  ];
+  const invalid = [null, [], {}, 4, 'result',
+    { moves: 7, completedAt: 0 }, { moves: 8.5, completedAt: 0 },
+    { moves: '8', completedAt: 0 }, { moves: Number.MAX_SAFE_INTEGER + 1, completedAt: 0 },
+    { moves: 8, completedAt: -1 }, { moves: 8, completedAt: 0.5 },
+    { moves: 8, completedAt: '0' }, { moves: 8, completedAt: null },
+    { moves: 8, completedAt: 8640000000000001 },
+  ];
+  useStorage(t, [[key, JSON.stringify([...invalid, ...valid])]]);
+  assert.deepEqual(createLeaderboardStore().getResults().results, [
+    { moves: 8, completedAt: 0 },
+    { moves: Number.MAX_SAFE_INTEGER, completedAt: 8640000000000000 },
+  ]);
+});
+
+test('results sort by moves then completion time and keep equal records', (t) => {
+  useStorage(t, [[key, JSON.stringify([
+    { moves: 9, completedAt: 50 }, { moves: 8, completedAt: 300 },
+    { moves: 8, completedAt: 100 }, { moves: 8, completedAt: 100 },
+    { moves: 8, completedAt: 200 },
+  ])]]);
+  const store = createLeaderboardStore();
+  assert.deepEqual(store.getResults().results, [
+    { moves: 8, completedAt: 100 }, { moves: 8, completedAt: 100 },
+    { moves: 8, completedAt: 200 }, { moves: 8, completedAt: 300 },
+    { moves: 9, completedAt: 50 },
+  ]);
+  assert.deepEqual(store.addResult({ moves: 8, completedAt: 0 }).results[0], { moves: 8, completedAt: 0 });
+});
+
+test('loading a larger leaderboard returns only its ten best records', (t) => {
+  const source = Array.from({ length: 12 }, (_, index) => ({ moves: 19 - index, completedAt: index }));
+  const storage = useStorage(t, [[key, JSON.stringify(source)]]);
+  assert.deepEqual(createLeaderboardStore().getResults().results, source.slice(2).reverse());
+  assert.deepEqual(storage.writes, []);
+});
+
+test('adding a better or worse result keeps ten records in memory and storage', (t) => {
+  const source = Array.from({ length: 10 }, (_, index) => ({ moves: 10 + index, completedAt: index }));
+  const storage = useStorage(t, [[key, JSON.stringify(source)]]);
+  const store = createLeaderboardStore();
+  const better = { moves: 8, completedAt: 1000 };
+  const expected = [better, ...source.slice(0, 9)];
+  assert.deepEqual(store.addResult(better).results, expected);
+  assert.deepEqual(JSON.parse(storage.values.get(key)), expected);
+  assert.deepEqual(store.addResult({ moves: 100, completedAt: 0 }).results, expected);
+  assert.deepEqual(JSON.parse(storage.values.get(key)), expected);
+});
+
+test('invalid additions are rejected before reading, writing or changing valid results', (t) => {
+  const valid = { moves: 8, completedAt: 0 };
+  const storage = useStorage(t, [[key, JSON.stringify([valid])]]);
+  const store = createLeaderboardStore();
+  const invalid = [undefined, null, [], {}, 'result',
+    { moves: 7, completedAt: 0 }, { moves: 8.1, completedAt: 0 },
+    { moves: NaN, completedAt: 0 }, { moves: Infinity, completedAt: 0 },
+    { moves: Number.MAX_SAFE_INTEGER + 1, completedAt: 0 },
+    { moves: 8, completedAt: -1 }, { moves: 8, completedAt: NaN },
+    { moves: 8, completedAt: Infinity }, { moves: 8, completedAt: '0' },
+    { moves: 8, completedAt: 8640000000000001 },
+  ];
+  for (const value of invalid) assert.throws(() => store.addResult(value), TypeError);
+  assert.deepEqual(storage.reads, []);
+  assert.deepEqual(store.getResults().results, [valid]);
+  for (const value of invalid) assert.throws(() => store.addResult(value), TypeError);
+  assert.deepEqual(store.getResults().results, [valid]);
+  assert.deepEqual(storage.writes, []);
+  assert.deepEqual(JSON.parse(storage.values.get(key)), [valid]);
+});
