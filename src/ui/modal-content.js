@@ -1,3 +1,5 @@
+import { formatDate } from '../utils/format-date.js';
+
 const persistenceMessage = 'Постоянное сохранение недоступно. Результаты доступны в текущем сеансе и могут потеряться после перезагрузки';
 
 function createText(tagName, className, text) {
@@ -63,9 +65,7 @@ export function createLeaderboardContent({ results, persistence, onClose }) {
     const body = document.createElement('tbody');
     results.forEach(({ moves, completedAt }, index) => {
       const row = document.createElement('tr');
-      const date = new Date(completedAt).toLocaleDateString('ru-RU', {
-        day: '2-digit', month: '2-digit', year: 'numeric',
-      });
+      const date = formatDate(completedAt);
       for (const value of [index + 1, moves, date]) {
         row.append(createText('td', '', value));
       }
