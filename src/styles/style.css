@@ -1,1 +1,91 @@
-/* Базовые стили проекта. Оформление игры будет добавлено позже. */
+:root {
+  --color-bg: #070B14;
+  --color-surface: #111A2B;
+  --color-surface-raised: #1B2940;
+  --color-border: #354760;
+  --color-text: #F4F7FC;
+  --color-text-muted: #AEBBD0;
+  --color-title: #FFE36B;
+  --color-accent: #75DAFF;
+  --color-on-accent: #07111E;
+  --color-success: #93F5B5;
+  --color-error: #FF9CA8;
+
+  --font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-size-body: 16px;
+  --font-size-title: 36px;
+  --font-size-label: 14px;
+  --font-size-counter: 28px;
+  --line-height-body: 1.5;
+  --line-height-title: 1.15;
+  --line-height-label: 1.4;
+  --line-height-counter: 1.2;
+  --font-weight-bold: 700;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+
+  --radius-control: 10px;
+  --radius-card: 12px;
+  --radius-panel: 20px;
+}
+
+body {
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-family);
+  font-size: var(--font-size-body);
+  line-height: var(--line-height-body);
+}
+
+button {
+  font: inherit;
+}
+
+.app-title {
+  color: var(--color-title);
+  font-size: var(--font-size-title);
+  font-weight: var(--font-weight-bold);
+  line-height: var(--line-height-title);
+}
+
+.game-instruction,
+.game-card-fallback {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-label);
+  line-height: var(--line-height-label);
+}
+
+.game-counter {
+  font-size: var(--font-size-counter);
+  font-weight: var(--font-weight-bold);
+  font-variant-numeric: tabular-nums;
+  line-height: var(--line-height-counter);
+}
+
+.button {
+  min-height: 44px;
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  background-color: var(--color-surface);
+  color: var(--color-text);
+}
+
+.button-primary {
+  border-color: var(--color-accent);
+  background-color: var(--color-accent);
+  color: var(--color-on-accent);
+}
+
+.game-card {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  background-color: var(--color-surface);
+  color: var(--color-text);
+}
