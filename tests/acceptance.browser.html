@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Проверка приёмки Memory Game</title>
+  </head>
+  <body>
+    <script type="module">
+      import { runAcceptanceTests } from './acceptance.browser.js';
+      const output = document.createElement('pre');
+      document.body.append(output);
+      try {
+        const { passed } = await runAcceptanceTests();
+        output.textContent = `PASS: ${passed.length} scenarios\n${passed.join('\n')}`;
+        output.dataset.result = 'pass';
+      } catch (error) {
+        output.textContent = `FAIL: ${error.stack || error}`;
+        output.dataset.result = 'fail';
+        throw error;
+      }
+    </script>
+  </body>
+</html>
