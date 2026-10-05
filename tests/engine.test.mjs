@@ -25,12 +25,33 @@ function chooseMismatch(game) {
   game.choose(second.id);
 }
 
+function assertFreshRound(snapshot, previous = null) {
+  assert.equal(snapshot.roundId, previous === null ? 1 : previous.roundId + 1);
+  assert.equal(snapshot.phase, 'idle');
+  assert.equal(snapshot.moves, 0);
+  assert.equal(snapshot.matchedPairs, 0);
+  assert.equal(snapshot.firstCardId, null);
+  assert.equal(snapshot.secondCardId, null);
+  assert.equal(snapshot.completedAt, null);
+  assert.equal(snapshot.deck.length, 16);
+  assert.equal(new Set(snapshot.deck.map((card) => card.id)).size, 16);
+  assert.ok(snapshot.deck.every((card) => card.status === 'closed'));
+  for (const pairId of pairIds) {
+    assert.equal(snapshot.deck.filter((card) => card.pairId === pairId).length, 2);
+  }
+  if (previous !== null) {
+    const oldIds = new Set(previous.deck.map((card) => card.id));
+    assert.ok(snapshot.deck.every((card) => !oldIds.has(card.id)));
+  }
+}
+
 test('creation is silent; restart starts fresh rounds and copies input pair IDs', (t) => {
   const input = [...pairIds];
   let shuffles = 0;
+  let randomValue = 0;
   const { game, events } = startGame(t, {
     pairIds: input,
-    random: () => { shuffles += 1; return 0.5; },
+    random: () => { shuffles += 1; return randomValue; },
   });
   assert.equal(game.getSnapshot(), null);
   game.choose('unknown');
@@ -39,22 +60,61 @@ test('creation is silent; restart starts fresh rounds and copies input pair IDs'
   input.length = 0;
 
   game.restart();
+  assert.equal(events.length, 1);
   assert.equal(events[0].kind, 'started');
-  assert.equal(events[0].snapshot.roundId, 1);
-  assert.equal(events[0].snapshot.deck.length, 16);
-  assert.equal(new Set(events[0].snapshot.deck.map((card) => card.id)).size, 16);
+  assertFreshRound(events[0].snapshot);
+  assert.deepEqual(events[0].snapshot, game.getSnapshot());
+  const orderedPairs = pairIds.flatMap((pairId) => [pairId, pairId]);
+  assert.deepEqual(events[0].snapshot.deck.map((card) => card.pairId),
+    [...orderedPairs.slice(1), orderedPairs[0]]);
+  assert.equal(shuffles, 15);
   game.choose(game.getSnapshot().deck[0].id);
   const firstRound = game.getSnapshot();
+  assert.equal(firstRound.phase, 'one-open');
+  randomValue = 0.999;
+  const count = events.length;
   game.restart();
   const secondRound = game.getSnapshot();
-  assert.equal(secondRound.roundId, 2);
-  assert.equal(secondRound.moves, 0);
-  assert.equal(secondRound.matchedPairs, 0);
-  assert.equal(secondRound.phase, 'idle');
-  assert.equal(secondRound.firstCardId, null);
-  assert.ok(secondRound.deck.every((card) => card.status === 'closed'));
-  assert.ok(secondRound.deck.every((card) => !firstRound.deck.some((old) => old.id === card.id)));
+  assert.equal(events.length, count + 1);
+  assert.equal(events.at(-1).kind, 'started');
+  assert.deepEqual(events.at(-1).snapshot, secondRound);
+  assertFreshRound(secondRound, firstRound);
+  assert.deepEqual(secondRound.deck.map((card) => card.pairId), orderedPairs);
   assert.equal(shuffles, 30);
+});
+
+test('restart resets matched progress and a completed result and allows immediate selection', (t) => {
+  const { game, events } = startGame(t, { now: () => 1234 });
+  game.restart();
+  const pair = game.getSnapshot().deck.filter((card) => card.pairId === pairIds[0]);
+  game.choose(pair[0].id);
+  game.choose(pair[1].id);
+  const progress = game.getSnapshot();
+  assert.equal(progress.moves, 1);
+  assert.equal(progress.matchedPairs, 1);
+  game.restart();
+  assertFreshRound(game.getSnapshot(), progress);
+  assert.equal(events.at(-1).kind, 'started');
+  assert.deepEqual(events.at(-1).snapshot, game.getSnapshot());
+
+  for (const pairId of pairIds) {
+    const currentPair = game.getSnapshot().deck.filter((card) => card.pairId === pairId);
+    game.choose(currentPair[0].id);
+    game.choose(currentPair[1].id);
+  }
+  const finished = game.getSnapshot();
+  assert.equal(finished.phase, 'finished');
+  assert.equal(finished.completedAt, 1234);
+  const count = events.length;
+  game.restart();
+  const restarted = game.getSnapshot();
+  assertFreshRound(restarted, finished);
+  assert.equal(events.length, count + 1);
+  assert.equal(events.at(-1).kind, 'started');
+  assert.deepEqual(events.at(-1).snapshot, restarted);
+  game.choose(restarted.deck[0].id);
+  assert.equal(game.getSnapshot().phase, 'one-open');
+  assert.equal(game.getSnapshot().moves, 0);
 });
 
 test('snapshot and notification mutations cannot change the current or later game', (t) => {
@@ -280,13 +340,24 @@ test('each mismatch has one 1000 ms timer; callback and rapid choices cannot ext
 
 test('restart cancels the pending timer and new mismatch keeps its own deadline', (t) => {
   t.mock.timers.enable({ apis: ['setTimeout'] });
+  const schedule = t.mock.method(globalThis, 'setTimeout');
+  const clear = t.mock.method(globalThis, 'clearTimeout');
   const { game, events } = startGame(t, { delayMs: 700 });
   game.restart();
   chooseMismatch(game);
+  const previous = game.getSnapshot();
   t.mock.timers.tick(300);
   game.restart();
+  assertFreshRound(game.getSnapshot(), previous);
+  assert.equal(events.at(-1).kind, 'started');
+  assert.deepEqual(events.at(-1).snapshot, game.getSnapshot());
+  assert.equal(clear.mock.callCount(), 1);
+  assert.deepEqual(clear.mock.calls[0].arguments, [schedule.mock.calls[0].result]);
   chooseMismatch(game);
   const waiting = game.getSnapshot();
+  assert.equal(waiting.phase, 'waiting-mismatch');
+  assert.equal(waiting.moves, 1);
+  assert.equal(waiting.matchedPairs, 0);
   t.mock.timers.tick(400);
   assert.deepEqual(game.getSnapshot(), waiting);
   assert.equal(events.length, 6);
