@@ -38,6 +38,20 @@ export function createModal({ backgroundRoot }) {
 
   let destroyed = false;
 
+  function handleOverlayClick(event) {
+    if (event.target === overlay) close();
+  }
+
+  function handleKeydown(event) {
+    if (event.key !== 'Escape' || !isOpen()) return;
+    event.preventDefault();
+    close();
+  }
+
+  closeButton.addEventListener('click', close);
+  overlay.addEventListener('click', handleOverlayClick);
+  document.addEventListener('keydown', handleKeydown);
+
   function open({ title, content }) {
     if (destroyed) return;
     if (typeof title !== 'string' || title.trim() === '') {
@@ -69,6 +83,9 @@ export function createModal({ backgroundRoot }) {
     if (destroyed) return;
     close();
     destroyed = true;
+    closeButton.removeEventListener('click', close);
+    overlay.removeEventListener('click', handleOverlayClick);
+    document.removeEventListener('keydown', handleKeydown);
     overlay.remove();
   }
 

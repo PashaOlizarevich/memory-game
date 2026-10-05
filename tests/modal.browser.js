@@ -72,6 +72,53 @@ export function runModalTests() {
     assert(modal.isOpen() && dialogs()[0] === dialog && dialog.contains(reopened), 'close must allow reopening the same shell');
     passed.push('idempotent close and subsequent reuse');
 
+    const openContent = () => {
+      const content = document.createElement('div');
+      const nestedButton = document.createElement('button');
+      nestedButton.type = 'button';
+      const child = document.createElement('span');
+      child.textContent = 'Действие внутри окна';
+      nestedButton.append(child);
+      content.append(nestedButton);
+      modal.open({ title: 'Проверка закрытия', content });
+      return { content, nestedButton, child };
+    };
+    const closeButton = dialog.querySelector('.modal-close');
+    openContent();
+    closeButton.click();
+    assert(!modal.isOpen() && shell.hidden, 'close button must hide the window');
+    openContent();
+    closeButton.click();
+    assert(!modal.isOpen(), 'close button must work after reopening');
+    passed.push('close button works across repeated openings');
+
+    const nested = openContent();
+    let contentClicks = 0;
+    nested.nestedButton.addEventListener('click', () => { contentClicks += 1; });
+    dialog.click();
+    heading.click();
+    nested.content.click();
+    nested.child.click();
+    assert(modal.isOpen() && contentClicks === 1, 'panel and nested content clicks must preserve the window and content handlers');
+    shell.click();
+    assert(!modal.isOpen() && shell.hidden, 'click on the overlay itself must close');
+    passed.push('backdrop closes while panel and nested content clicks stay open');
+
+    const escapeContent = openContent();
+    const otherKey = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true });
+    escapeContent.nestedButton.dispatchEvent(otherKey);
+    assert(modal.isOpen() && !otherKey.defaultPrevented, 'other keys must not close or be consumed');
+    escapeContent.nestedButton.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+    assert(!modal.isOpen() && shell.hidden, 'Escape from a content control must close');
+    openContent();
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+    assert(!modal.isOpen(), 'Escape must also work without focus inside the panel');
+    const closedEscape = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true });
+    document.dispatchEvent(closedEscape);
+    assert(!modal.isOpen() && !closedEscape.defaultPrevented, 'closed shell must not consume Escape');
+    passed.push('Escape closes from content or document and ignores closed windows and other keys');
+
+    openContent();
     modal.destroy();
     modal.destroy();
     assert(!shell.isConnected && !modal.isOpen(), 'destroy must remove the shell');
@@ -79,6 +126,11 @@ export function runModalTests() {
     modal.close();
     assert(dialogs().length === 0 && !modal.isOpen(), 'destroy must be terminal');
     assert(backgroundRoot.isConnected, 'destroy must preserve the game');
+    closeButton.click();
+    shell.click();
+    const destroyedEscape = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true });
+    document.dispatchEvent(destroyedEscape);
+    assert(!destroyedEscape.defaultPrevented && dialogs().length === 0, 'destroyed shell must not respond to former event sources');
     passed.push('terminal idempotent destroy preserves the background');
     return { passed };
   } finally {
