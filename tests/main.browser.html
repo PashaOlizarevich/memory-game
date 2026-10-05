@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8">
+    <title>Memory Game — main integration tests</title>
+  </head>
+  <body>
+    <script type="module">
+      import { runMainTests } from './main.browser.js';
+
+      const result = document.createElement('pre');
+      try {
+        const { passed } = await runMainTests();
+        result.dataset.result = 'passed';
+        result.textContent = `PASS: ${passed.length} scenarios\n${passed.join('\n')}`;
+      } catch (error) {
+        result.dataset.result = 'failed';
+        result.textContent = `FAIL: ${error.message}`;
+        console.error(error);
+      }
+      document.body.append(result);
+    </script>
+  </body>
+</html>

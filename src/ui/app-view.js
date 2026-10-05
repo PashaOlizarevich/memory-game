@@ -19,6 +19,7 @@ export function createAppView({ cards, backImageUrl, onCard, onNewGame, onLeader
   leaderboardButton.type = 'button';
   leaderboardButton.className = 'button button-secondary';
   leaderboardButton.textContent = 'Таблица лидеров';
+  leaderboardButton.disabled = typeof onLeaderboard !== 'function';
   actions.append(newGameButton, leaderboardButton);
   header.append(title, actions);
 
@@ -102,7 +103,9 @@ export function createAppView({ cards, backImageUrl, onCard, onNewGame, onLeader
   }
 
   newGameButton.addEventListener('click', () => onNewGame(), { signal: listeners.signal });
-  leaderboardButton.addEventListener('click', () => onLeaderboard(), { signal: listeners.signal });
+  if (typeof onLeaderboard === 'function') {
+    leaderboardButton.addEventListener('click', () => onLeaderboard(), { signal: listeners.signal });
+  }
   board.addEventListener('click', (event) => {
     const button = event.target.closest('button[data-card-id]');
     if (button && board.contains(button) && !button.disabled) onCard(button.dataset.cardId);
