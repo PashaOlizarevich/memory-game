@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Memory Game — modal shell tests</title>
+    <link rel="stylesheet" href="../src/styles/style.css">
+  </head>
+  <body>
+    <script type="module">
+      import { runModalTests } from './modal.browser.js';
+
+      const result = document.createElement('pre');
+      try {
+        const { passed } = runModalTests();
+        result.dataset.result = 'passed';
+        result.textContent = `PASS: ${passed.length} scenarios\n${passed.join('\n')}`;
+      } catch (error) {
+        result.dataset.result = 'failed';
+        result.textContent = `FAIL: ${error.message}`;
+        console.error(error);
+      }
+      document.body.append(result);
+    </script>
+  </body>
+</html>
