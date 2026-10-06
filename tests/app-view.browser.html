@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8">
+    <base href="../">
+    <title>Memory Game — app-view browser tests</title>
+    <link rel="stylesheet" href="./src/styles/style.css">
+  </head>
+  <body>
+    <script type="module">
+      import { runAppViewTests } from './tests/app-view.browser.js';
+
+      const result = document.createElement('pre');
+      try {
+        const { passed } = await runAppViewTests();
+        result.dataset.result = 'passed';
+        result.textContent = `PASS: ${passed.length} scenarios\n${passed.join('\n')}`;
+      } catch (error) {
+        result.dataset.result = 'failed';
+        result.textContent = `FAIL: ${error.message}`;
+        console.error(error);
+      }
+      document.body.append(result);
+    </script>
+  </body>
+</html>
