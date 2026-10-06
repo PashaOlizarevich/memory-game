@@ -35,6 +35,7 @@ const game = createGame({
 const view = createAppView({
   cards,
   backImageUrl,
+  musicUrl: './public/assets/audio/star-wars-theme.mp3',
   onCard: (cardId) => {
     if (!modal.isOpen()) game.choose(cardId);
   },

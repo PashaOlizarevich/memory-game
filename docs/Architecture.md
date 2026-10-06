@@ -24,6 +24,7 @@ memory-game/
 │   │   └── engine.js
 │   ├── ui/
 │   │   ├── app-view.js
+│   │   ├── music-control.js
 │   │   ├── modal.js
 │   │   └── modal-content.js
 │   ├── storage/
@@ -32,6 +33,7 @@ memory-game/
 │   │   └── format-date.js
 │   └── styles/style.css
 ├── public/assets/images/cards/
+├── public/assets/audio/star-wars-theme.mp3
 └── docs/
 ```
 
@@ -43,6 +45,7 @@ memory-game/
 | `game/state.js` | Создание колоды и чистые переходы состояния: выбор, совпадение, закрытие несовпадения |
 | `game/engine.js` | Единственное актуальное состояние партии, таймер, перезапуск и уведомление об изменении |
 | `ui/app-view.js` | Главный экран, ссылки на карточки и счётчики, обработчики действий, отображение снимка |
+| `ui/music-control.js` | Кнопка фоновой музыки, браузерный audio, повтор, пауза, обработка ошибок и освобождение ресурса |
 | `ui/modal.js` | Одна переиспользуемая оболочка: открытие, закрытие, фон, прокрутка и фокус |
 | `ui/modal-content.js` | Создание DOM-содержимого победы и рейтинга; без самостоятельных модальных оболочек |
 | `storage/leaderboard.js` | Чтение, проверка, сортировка, ограничение топ-10 и запись; резервное хранение в памяти |
@@ -58,6 +61,7 @@ index.html → main.js
 main.js → cards.js, engine.js, app-view.js, modal.js,
           modal-content.js, leaderboard.js
 engine.js → state.js
+app-view.js → music-control.js
 state.js → shuffle.js
 modal-content.js → format-date.js
 ```
@@ -128,7 +132,8 @@ modal-content.js → format-date.js
 
 | Функция | Контракт |
 | --- | --- |
-| `createAppView({ cards, backImageUrl, onCard, onNewGame, onLeaderboard })` | Создаёт и добавляет главный экран; возвращает `{ root, render, getNewGameButton, destroy }` |
+| `createAppView({ cards, backImageUrl, onCard, onNewGame, onLeaderboard, musicUrl })` | Создаёт и добавляет главный экран; при наличии musicUrl добавляет управление музыкой; возвращает `{ root, render, getNewGameButton, destroy }` |
+| `createMusicControl({ source })` | Возвращает `{ root, destroy }`; создаёт кнопку, сообщение ошибки и audio с preload none, loop и громкостью 0.2; запускает только по нажатию, destroy останавливает и освобождает audio |
 | `view.render(snapshot)` | Обновляет поле и счётчики; пересоздаёт карточки только при смене раунда, не касается модалки |
 | `createModal({ backgroundRoot })` | Создаёт одну оболочку рядом с главным экраном; возвращает `{ open, close, isOpen, destroy }` |
 | `modal.open({ title, content, returnFocus })` | Принимает DOM-узел, задаёт заголовок, блокирует фон/скролл и переводит фокус внутрь; при повторном открытии заменяет содержимое той же оболочки |

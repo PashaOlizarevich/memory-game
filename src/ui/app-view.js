@@ -1,4 +1,6 @@
-export function createAppView({ cards, backImageUrl, onCard, onNewGame, onLeaderboard }) {
+import { createMusicControl } from './music-control.js';
+
+export function createAppView({ cards, backImageUrl, onCard, onNewGame, onLeaderboard, musicUrl }) {
   const cardCatalog = new Map(cards.map((card) => [card.pairId, { ...card }]));
   const listeners = new AbortController();
   const root = document.createElement('main');
@@ -21,6 +23,8 @@ export function createAppView({ cards, backImageUrl, onCard, onNewGame, onLeader
   leaderboardButton.textContent = 'Таблица лидеров';
   leaderboardButton.disabled = typeof onLeaderboard !== 'function';
   actions.append(newGameButton, leaderboardButton);
+  const music = musicUrl ? createMusicControl({ source: musicUrl }) : null;
+  if (music) actions.append(music.root);
   header.append(title, actions);
 
   const counters = document.createElement('div');
@@ -194,6 +198,7 @@ export function createAppView({ cards, backImageUrl, onCard, onNewGame, onLeader
     destroyed = true;
     listeners.abort();
     deckListeners.abort();
+    music?.destroy();
     root.remove();
     cardViews.clear();
   }
