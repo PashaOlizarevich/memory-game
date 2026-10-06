@@ -77,6 +77,8 @@ button:focus-visible {
 }
 
 .app {
+  position: relative;
+  isolation: isolate;
   display: flex;
   flex-direction: column;
   gap: var(--space-5);
@@ -84,6 +86,68 @@ button:focus-visible {
   max-width: 960px;
   margin-inline: auto;
   padding: var(--space-6);
+}
+
+.crawl-background {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+  user-select: none;
+  mask-image: linear-gradient(transparent, #000 28%, #000 85%, transparent);
+}
+
+.crawl-background::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 50% 40%, rgba(7, 11, 20, 0.85), transparent 75%);
+}
+
+.crawl-text {
+  position: absolute;
+  top: 30%;
+  left: 50%;
+  width: min(150vw, 1200px);
+  color: var(--color-title);
+  font-size: clamp(26px, 3.5vw, 48px);
+  font-weight: var(--font-weight-bold);
+  line-height: 1.7;
+  text-align: justify;
+  transform-origin: 50% 0;
+  transform: translateX(-50%) perspective(700px) rotateX(55deg);
+  opacity: 0.45;
+}
+
+.crawl-roll {
+  animation: opening-crawl 110s linear -18s infinite;
+}
+
+.crawl-pass {
+  display: flow-root;
+}
+
+.crawl-text p {
+  margin: 0 0 1.5em;
+}
+
+.crawl-episode,
+.crawl-title {
+  text-align: center;
+}
+
+.crawl-title {
+  letter-spacing: 0.08em;
+}
+
+@keyframes opening-crawl {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(-50%);
+  }
 }
 
 .app-header {
@@ -553,6 +617,10 @@ button:focus-visible {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .crawl-background {
+    display: none;
+  }
+
   *,
   *::before,
   *::after {

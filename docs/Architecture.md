@@ -24,6 +24,7 @@ memory-game/
 │   │   └── engine.js
 │   ├── ui/
 │   │   ├── app-view.js
+│   │   ├── crawl-background.js
 │   │   ├── music-control.js
 │   │   ├── modal.js
 │   │   └── modal-content.js
@@ -45,6 +46,7 @@ memory-game/
 | `game/state.js` | Создание колоды и чистые переходы состояния: выбор, совпадение, закрытие несовпадения |
 | `game/engine.js` | Единственное актуальное состояние партии, таймер, перезапуск и уведомление об изменении |
 | `ui/app-view.js` | Главный экран, ссылки на карточки и счётчики, обработчики действий, отображение снимка |
+| `ui/crawl-background.js` | Декоративные фоновые титры; создаёт DOM, движение задаётся CSS, удаляется вместе с экраном |
 | `ui/music-control.js` | Кнопка фоновой музыки, браузерный audio, повтор, пауза, обработка ошибок и освобождение ресурса |
 | `ui/modal.js` | Одна переиспользуемая оболочка: открытие, закрытие, фон, прокрутка и фокус |
 | `ui/modal-content.js` | Создание DOM-содержимого победы и рейтинга; без самостоятельных модальных оболочек |
@@ -61,7 +63,7 @@ index.html → main.js
 main.js → cards.js, engine.js, app-view.js, modal.js,
           modal-content.js, leaderboard.js
 engine.js → state.js
-app-view.js → music-control.js
+app-view.js → music-control.js, crawl-background.js
 state.js → shuffle.js
 modal-content.js → format-date.js
 ```

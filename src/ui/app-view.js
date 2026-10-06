@@ -1,4 +1,5 @@
 import { createMusicControl } from './music-control.js';
+import { createCrawlBackground } from './crawl-background.js';
 
 export function createAppView({ cards, backImageUrl, onCard, onNewGame, onLeaderboard, musicUrl }) {
   const cardCatalog = new Map(cards.map((card) => [card.pairId, { ...card }]));
@@ -74,7 +75,7 @@ export function createAppView({ cards, backImageUrl, onCard, onNewGame, onLeader
   schoolLink.textContent = 'RS School';
   schoolLink.setAttribute('aria-label', 'RS School (откроется в новой вкладке)');
   footer.append(authorLink, year, schoolLink);
-  root.append(header, counters, instruction, board, footer);
+  root.append(createCrawlBackground(), header, counters, instruction, board, footer);
 
   let roundId = null;
   let cardViews = new Map();
