@@ -1,4 +1,18 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+<svg xmlns="http://www.w3.org/2000/svg" id="active" width="256" height="256" viewBox="0 0 256 256">
+  <style>
+    .ship { transform-origin: 128px 128px; }
+    .trail { opacity: 0; }
+    #active:target .ship { animation: jump 650ms ease-out 160ms, hover 3.5s ease-in-out 810ms infinite; }
+    #active:target .trail { animation: trail 650ms ease-out 160ms; }
+    #active:target .engine { animation: thrust 1.6s ease-in-out infinite; }
+    @keyframes jump { 25% { transform: rotate(-14deg) translateY(6px) scale(.9); } 60% { transform: rotate(10deg) translateY(-10px) scale(1.06); } }
+    @keyframes hover { 50% { transform: translateY(-4px) rotate(-3deg); } }
+    @keyframes trail { 30% { opacity: 0; } 55% { opacity: .8; } 100% { opacity: 0; transform: translateY(14px); } }
+    @keyframes thrust { 50% { stroke: #F4F7FC; stroke-width: 12; } }
+    @media (prefers-reduced-motion: reduce) { * { animation: none !important; } }
+  </style>
+  <g class="ship">
+  <path class="trail" d="M78 198v28m37-20v34m37-42v28" fill="none" stroke="#75DAFF" stroke-width="5" stroke-linecap="round"/>
   <g stroke="#354760" stroke-width="7" stroke-linejoin="round" stroke-linecap="round">
     <path fill="#AEBBD0" d="m171 88 29-28 19 11-30 42Z"/>
     <path fill="#F4F7FC" d="M192 132a77 77 0 1 1-154 0 77 77 0 0 1 154 0Z"/>
@@ -10,6 +24,7 @@
     <circle cx="115" cy="127" r="25" fill="#AEBBD0"/>
     <circle cx="115" cy="127" r="10" fill="#1B2940" stroke="none"/>
     <path fill="none" d="m95 148-21 22m61-22 21 22m-41-18v39"/>
-    <path d="M67 183q48 32 96 0" fill="none" stroke="#75DAFF" stroke-width="8"/>
+    <path class="engine" d="M67 183q48 32 96 0" fill="none" stroke="#75DAFF" stroke-width="8"/>
+  </g>
   </g>
 </svg>

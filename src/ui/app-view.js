@@ -1,6 +1,14 @@
 import { createMusicControl } from './music-control.js';
 import { createCrawlBackground } from './crawl-background.js';
 
+let nextSceneId = 0;
+
+function isCurrentImage(image) {
+  // Fragment variants share SVG bytes; a cached currentSrc can retain the
+  // previous fragment while src already selects the static/animated view.
+  return image.currentSrc.split('#')[0] === image.src.split('#')[0];
+}
+
 export function createAppView({ cards, backImageUrl, onCard, onNewGame, onLeaderboard, musicUrl }) {
   const cardCatalog = new Map(cards.map((card) => [card.pairId, { ...card }]));
   const listeners = new AbortController();
@@ -114,16 +122,16 @@ export function createAppView({ cards, backImageUrl, onCard, onNewGame, onLeader
     fallback.className = 'game-card-fallback';
     fallback.hidden = true;
     fallback.setAttribute('aria-hidden', 'true');
-    const view = { button, image, fallback, number: index + 1, label: '', failedImageUrl: null };
+    const view = { button, image, fallback, number: index + 1, label: '', failedImageUrl: null, sceneUrl: null };
     image.addEventListener('error', () => {
       // Events have no request URL: inspect the current image, not a prior request.
       if (button.dataset.status === 'closed' || !image.complete || image.naturalWidth !== 0
-        || image.currentSrc !== image.src) return;
+        || !isCurrentImage(image)) return;
       view.failedImageUrl = image.getAttribute('src');
       updateFallback(view);
     }, { signal: deckListeners.signal });
     image.addEventListener('load', () => {
-      if (!image.complete || image.naturalWidth === 0 || image.currentSrc !== image.src) return;
+      if (!image.complete || image.naturalWidth === 0 || !isCurrentImage(image)) return;
       view.failedImageUrl = null;
       updateFallback(view);
     }, { signal: deckListeners.signal });
@@ -171,8 +179,19 @@ export function createAppView({ cards, backImageUrl, onCard, onNewGame, onLeader
       const description = cardCatalog.get(card.pairId);
       button.dataset.status = card.status;
       view.label = closed ? '' : description.label;
-      // Keep the face during the return flip; the back has its own image.
-      if (!closed && image.getAttribute('src') !== description.imageUrl) image.src = description.imageUrl;
+      // The SVG fragment activates its CSS scene. Closing restores the static
+      // face for the return flip; untouched cards do not load a face in advance.
+      const animated = description.animated && description.imageUrl.endsWith('.svg');
+      if (closed) view.sceneUrl = null;
+      if (!closed && animated && !view.sceneUrl) {
+        // A distinct SVG image document gives every opening its own timeline;
+        // otherwise cached fragment variants can share animation state.
+        view.sceneUrl = `${description.imageUrl}?scene=${++nextSceneId}#active`;
+      }
+      const faceUrl = !closed && animated ? view.sceneUrl : description.imageUrl;
+      if ((!closed || image.hasAttribute('src')) && image.getAttribute('src') !== faceUrl) {
+        image.src = faceUrl;
+      }
       updateFallback(view);
       button.disabled = blocked || !closed;
       button.setAttribute('aria-label', closed

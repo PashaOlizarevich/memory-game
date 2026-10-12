@@ -1,8 +1,23 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+<svg xmlns="http://www.w3.org/2000/svg" id="active" width="256" height="256" viewBox="0 0 256 256">
+  <style>
+    .saber { transform-origin: 128px 180px; }
+    .blade { transform-origin: 128px 157px; }
+    #active:target .saber { animation: swing 650ms ease-out 160ms, ready 3s ease-in-out 810ms infinite; }
+    #active:target .blade { animation: ignite 240ms ease-out 160ms backwards; }
+    #active:target .glow { animation: pulse 1.8s ease-in-out infinite; }
+    @keyframes swing { 35% { transform: rotate(-24deg); } 65% { transform: rotate(18deg); } }
+    @keyframes ready { 50% { transform: rotate(-4deg); } }
+    @keyframes ignite { from { transform: scaleY(.02); } to { transform: scaleY(1); } }
+    @keyframes pulse { 50% { opacity: .45; stroke-width: 34; } }
+    @media (prefers-reduced-motion: reduce) { * { animation: none !important; } }
+  </style>
+  <g class="saber">
   <g transform="rotate(35 128 128)" stroke-linejoin="round" stroke-linecap="round">
-    <path d="M128 37v120" stroke="#75DAFF" stroke-width="28" opacity=".18"/>
+    <g class="blade">
+    <path class="glow" d="M128 37v120" stroke="#75DAFF" stroke-width="28" opacity=".18"/>
     <path d="M128 37v120" stroke="#75DAFF" stroke-width="17"/>
     <path d="M128 37v120" stroke="#F4F7FC" stroke-width="7"/>
+    </g>
     <g stroke="#354760" stroke-width="6">
       <path fill="#AEBBD0" d="M115 156h26v59h-26Z"/>
       <path fill="#F4F7FC" d="M110 149h36v15h-36Z"/>
@@ -11,5 +26,6 @@
       <path d="M116 188h24m-24 8h24" stroke="#AEBBD0" stroke-width="4"/>
       <circle cx="134" cy="172" r="4" fill="#FFE36B" stroke="none"/>
     </g>
+  </g>
   </g>
 </svg>

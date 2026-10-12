@@ -1,7 +1,21 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+<svg xmlns="http://www.w3.org/2000/svg" id="active" width="256" height="256" viewBox="0 0 256 256">
+  <style>
+    .station { transform-origin: 128px 128px; }
+    .charge, .beam { opacity: 0; }
+    .beam { transform-origin: 141px 89px; }
+    #active:target .station { animation: aim 650ms ease-out 160ms, orbit 12s linear 810ms infinite; }
+    #active:target .charge { animation: charge 650ms ease-out 160ms; }
+    #active:target .beam { animation: fire 650ms ease-out 160ms; }
+    @keyframes aim { 35% { transform: rotate(-12deg); } 65% { transform: rotate(5deg); } }
+    @keyframes orbit { 50% { transform: rotate(8deg); } }
+    @keyframes charge { 15% { opacity: 0; } 45% { opacity: .8; } 65%, 100% { opacity: 0; } }
+    @keyframes fire { 0%, 45% { opacity: 0; transform: scaleX(.05); } 60% { opacity: .85; transform: scaleX(1); } 85%, 100% { opacity: 0; } }
+    @media (prefers-reduced-motion: reduce) { * { animation: none !important; } }
+  </style>
   <defs>
     <clipPath id="sphere"><circle cx="128" cy="128" r="91"/></clipPath>
   </defs>
+  <g class="station">
   <circle cx="128" cy="128" r="91" fill="#AEBBD0"/>
   <g clip-path="url(#sphere)" stroke="#354760" stroke-width="6" stroke-linejoin="round" stroke-linecap="round">
     <path fill="#7D8FA8" stroke="none" d="M145 37q84 86 0 182h86V37Z"/>
@@ -12,4 +26,7 @@
     <circle cx="141" cy="89" r="5" fill="#070B14" stroke="none"/>
   </g>
   <circle cx="128" cy="128" r="91" fill="none" stroke="#354760" stroke-width="7"/>
+  <circle class="charge" cx="141" cy="89" r="16" fill="#B9FFCE"/>
+  <path class="beam" d="M141 89h101" fill="none" stroke="#B9FFCE" stroke-width="7" stroke-linecap="round"/>
+  </g>
 </svg>

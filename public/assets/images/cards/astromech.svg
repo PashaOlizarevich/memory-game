@@ -1,13 +1,30 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+<svg xmlns="http://www.w3.org/2000/svg" id="active" width="256" height="256" viewBox="0 0 256 256">
+  <style>
+    .body { transform-origin: 128px 214px; }
+    .head { transform-origin: 128px 96px; }
+    #active:target .body { animation: greet 650ms ease-out 160ms, sway 3s ease-in-out 810ms infinite; }
+    #active:target .head { animation: look 650ms ease-in-out 160ms, scan 4s ease-in-out 810ms infinite; }
+    #active:target .indicator { animation: signal 1.8s ease-in-out infinite; }
+    @keyframes greet { 25% { transform: rotate(-9deg); } 65% { transform: rotate(8deg); } }
+    @keyframes sway { 50% { transform: rotate(3deg); } }
+    @keyframes look { 25% { transform: translateX(-7px) skewX(-8deg); } 65% { transform: translateX(7px) skewX(8deg); } }
+    @keyframes scan { 50% { transform: translateX(4px) skewX(4deg); } }
+    @keyframes signal { 35%, 65% { fill: #FFE36B; } 50% { fill: #75DAFF; } }
+    @media (prefers-reduced-motion: reduce) { * { animation: none !important; } }
+  </style>
+  <g class="body">
   <g stroke="#354760" stroke-width="7" stroke-linejoin="round" stroke-linecap="round">
     <path fill="#AEBBD0" d="M53 127h23v80H45l8-80Zm127 0h23l8 80h-31Z"/>
     <path fill="#F4F7FC" d="M76 96h104v109H76Z"/>
+    <g class="head">
     <path fill="#AEBBD0" d="M76 96a52 52 0 0 1 104 0Z"/>
     <path fill="#75DAFF" d="M104 51h48v22h-48Z"/>
     <path fill="#1B2940" d="M100 77h56v19h-56Z"/>
     <circle cx="126" cy="85" r="9" fill="#070B14" stroke-width="4"/>
-    <path fill="#75DAFF" d="M96 115h64v17H96Zm10 33h44v30h-44Z"/>
+    </g>
+    <path class="indicator" fill="#75DAFF" d="M96 115h64v17H96Zm10 33h44v30h-44Z"/>
     <path fill="none" d="M122 148v30m-27 16h66"/>
     <path fill="#F4F7FC" d="M36 207h43v15H36Zm141 0h43v15h-43Zm-70-2h42v17h-42Z"/>
+  </g>
   </g>
 </svg>

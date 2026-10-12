@@ -1,10 +1,23 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+<svg xmlns="http://www.w3.org/2000/svg" id="active" width="256" height="256" viewBox="0 0 256 256">
+  <style>
+    .helmet { transform-origin: 128px 190px; }
+    .glint { opacity: 0; }
+    #active:target .helmet { animation: turn 650ms ease-out 160ms, watch 4s ease-in-out 810ms infinite; }
+    #active:target .glint { animation: sweep 650ms ease-out 160ms, sweep 4s ease-out 2s infinite; }
+    @keyframes turn { 30% { transform: translateX(-5px) rotate(-9deg) scaleX(.9); } 65% { transform: translateX(4px) rotate(6deg); } }
+    @keyframes watch { 50% { transform: rotate(-3deg); } }
+    @keyframes sweep { 10% { opacity: 0; transform: translateX(-18px); } 40% { opacity: .85; } 80%, 100% { opacity: 0; transform: translateX(18px); } }
+    @media (prefers-reduced-motion: reduce) { * { animation: none !important; } }
+  </style>
+  <g class="helmet">
   <g stroke="#354760" stroke-width="7" stroke-linejoin="round" stroke-linecap="round">
     <path fill="#F4F7FC" d="M58 90q3-50 70-50t70 50l15 92-25 32H68l-25-32Z"/>
     <path fill="#AEBBD0" d="m57 148 35 20-13 36H64l-13-22Zm142 0-35 20 13 36h15l13-22Z"/>
     <path fill="#070B14" d="m66 101 51 11v24l-42-9Zm124 0-51 11v24l42-9Z"/>
+    <path class="glint" fill="none" stroke="#75DAFF" stroke-width="5" d="m78 112 27 6m47 0 24-6"/>
     <path fill="none" d="M69 83h118"/>
     <path fill="#070B14" d="m116 146-15 27h54l-15-27Z"/>
     <path fill="none" d="M91 186v12m18-12v12m38-12v12m18-12v12"/>
+  </g>
   </g>
 </svg>

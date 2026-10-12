@@ -67,7 +67,8 @@ export async function runAppViewTests() {
     assert(view.root.querySelector('.app-header') === header && view.getNewGameButton() === newGame, 'Render replaced header controls');
     assert(firstButton.dataset.status === 'open' && firstButton.disabled, 'Opened card status or availability is wrong');
     assert(firstButton.getAttribute('aria-label') === `Карточка 1, ${cards.find((card) => card.pairId === first.pairId).label}`, 'Opened accessible name is wrong');
-    assert(firstButton.querySelector('.game-card-image').getAttribute('src') === cards.find((card) => card.pairId === first.pairId).imageUrl, 'Opened card must show its face');
+    const openedUrl = firstButton.querySelector('.game-card-image').getAttribute('src');
+    assert(openedUrl.startsWith(`${cards.find((card) => card.pairId === first.pairId).imageUrl}?scene=`) && openedUrl.endsWith('#active'), 'Opened card must activate its own SVG scene');
     assert(initialCounters[0].textContent === 'Ходы: 0', 'First card must not increase moves');
     firstButton.click();
     assert(calls.cards.length === 1, 'Disabled open card triggered callback');
@@ -136,10 +137,97 @@ export async function runAppViewTests() {
     passed.push('destroy releases listeners and prevents future updates');
     await runFlipTests(assert, passed);
     await runImageTests(assert, passed);
+    await runAnimationTests(assert, passed);
     return { passed };
   } finally {
     view.destroy();
     outsideButton.remove();
+  }
+}
+
+async function runAnimationTests(assert, passed) {
+  const view = createAppView({ cards, backImageUrl, onCard: () => {}, onNewGame: () => {} });
+  const pairIds = cards.map((card) => card.pairId);
+  const reducedMotion = [...document.styleSheets].flatMap((sheet) => [...sheet.cssRules])
+    .find((rule) => rule.conditionText === '(prefers-reduced-motion: reduce)');
+  const originalMedia = reducedMotion.media.mediaText;
+  const frame = document.createElement('iframe');
+  frame.title = 'Проверка SVG-анимаций';
+  frame.width = 256;
+  frame.height = 256;
+  document.body.append(frame);
+  const loadSvg = (url) => new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => reject(new Error(`SVG did not load: ${url}`)), 3000);
+    frame.onload = () => { clearTimeout(timeout); resolve(frame.contentDocument); };
+    frame.src = url;
+  });
+  try {
+    let state = createInitialState({ pairIds, roundId: 1, random: () => 0.5 });
+    view.render(state);
+    const buttons = [...view.root.querySelectorAll('.game-card')];
+    assert(buttons.every((button) => !button.querySelector('.game-card-image').hasAttribute('src')), 'Untouched cards loaded animated faces');
+    const first = state.deck[0];
+    const image = buttons[0].querySelector('.game-card-image');
+    state = selectCard(state, first.id, 0).state;
+    view.render(state);
+    const firstScene = image.getAttribute('src');
+    view.render(state);
+    assert(image.getAttribute('src') === firstScene, 'Repeated render restarted the SVG scene');
+    state = selectCard(state, state.deck.find((card) => card.pairId !== first.pairId).id, 0).state;
+    view.render(state);
+    state = resolveMismatch(state);
+    view.render(state);
+    assert(image.getAttribute('src') === cards.find((card) => card.pairId === first.pairId).imageUrl, 'Closed face kept its active SVG scene');
+    state = selectCard(state, first.id, 0).state;
+    view.render(state);
+    assert(image.getAttribute('src') !== firstScene && image.getAttribute('src').endsWith('#active'), 'Reopening reused an old SVG timeline');
+    passed.push('independent opening timelines, stable renders and static closed faces');
+
+    reducedMotion.media.mediaText = 'not all';
+    const partner = state.deck.find((card) => card.pairId === first.pairId && card.id !== first.id);
+    state = selectCard(state, partner.id, 0).state;
+    view.render(state);
+    const matched = buttons.filter((button) => button.dataset.status === 'matched');
+    const effects = matched.map((button) => button.querySelector('.game-card-image').getAnimations()[0]);
+    assert(effects.every((effect) => effect?.effect.getTiming().duration === 650), 'Found pair did not celebrate on both cards');
+    // Resolve start times in the same browser frame.
+    await Promise.all(effects.map((effect) => effect.ready));
+    assert(Math.abs(effects[0].startTime - effects[1].startTime) < 1, 'Pair celebration was not synchronized');
+    view.render(state);
+    assert(matched.every((button, index) => button.querySelector('.game-card-image').getAnimations()[0] === effects[index]), 'Repeated render restarted pair celebration');
+    reducedMotion.media.mediaText = 'all';
+    assert(matched.every((button) => button.querySelector('.game-card-image').getAnimations().length === 0), 'Reduced motion kept pair celebration');
+    passed.push('synchronized pair celebration, no render restart and reduced motion');
+
+    for (const card of cards) {
+      const svgDocument = await loadSvg(`${card.imageUrl}?scene=test-${card.pairId}#active`);
+      const svg = svgDocument.documentElement;
+      assert(svg.localName === 'svg' && !svgDocument.querySelector('parsererror'), `Invalid SVG: ${card.pairId}`);
+      const rules = [...svgDocument.styleSheets].flatMap((sheet) => [...sheet.cssRules]);
+      const media = rules.find((rule) => rule.conditionText === '(prefers-reduced-motion: reduce)');
+      assert(media, `SVG missing reduced motion: ${card.pairId}`);
+      media.media.mediaText = 'not all';
+      const animations = svg.getAnimations({ subtree: true });
+      assert(animations.length > 0, `Active SVG has no animation: ${card.pairId}`);
+      const action = animations.find((animation) => animation.effect.getTiming().iterations === 1);
+      assert(action, `SVG missing opening action: ${card.pairId}`);
+      action.pause();
+      const timing = action.effect.getTiming();
+      action.currentTime = timing.delay + timing.duration * 0.4;
+      const target = action.effect.target;
+      const activeStyle = svgDocument.defaultView.getComputedStyle(target);
+      assert(!new DOMMatrix(activeStyle.transform).isIdentity
+        || (activeStyle.opacity !== '0' && activeStyle.opacity !== '1'), `Opening action has no visible effect: ${card.pairId}`);
+      media.media.mediaText = 'all';
+      assert(svg.getAnimations({ subtree: true }).length === 0, `Reduced motion kept SVG animation: ${card.pairId}`);
+      const staticDocument = await loadSvg(card.imageUrl);
+      assert(staticDocument.documentElement.getAnimations({ subtree: true }).length === 0, `Static SVG is animated: ${card.pairId}`);
+    }
+    passed.push('all eight SVG actions render, static variants and internal reduced motion');
+  } finally {
+    reducedMotion.media.mediaText = originalMedia;
+    frame.remove();
+    view.destroy();
   }
 }
 
@@ -180,7 +268,7 @@ async function runFlipTests(assert, passed) {
       closing.finish();
     }
     assert(new DOMMatrix(getComputedStyle(inner).transform).m11 > 0.99, 'Closed card must complete the return flip');
-    assert(faceImage.getAttribute('src') === faceUrl && backImage.getAttribute('src') === backImageUrl, 'Return flip must preserve both images');
+    assert(faceImage.getAttribute('src') === faceUrl.split('?')[0] && backImage.getAttribute('src') === backImageUrl, 'Return flip must keep a static face and the shared back');
     // Apply the actual reduced-motion rule regardless of the test machine preference.
     reducedMotion.media.mediaText = 'all';
     getComputedStyle(inner).transform;
