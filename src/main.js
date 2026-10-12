@@ -18,6 +18,7 @@ const game = createGame({
 
     handledRoundId = snapshot.roundId;
     const { persistence } = store.addResult({
+      difficultyId: DEFAULT_DIFFICULTY_ID,
       moves: snapshot.moves,
       completedAt: snapshot.completedAt,
     });
@@ -44,7 +45,7 @@ const view = createAppView({
   onNewGame: startNewGame,
   onLeaderboard: () => {
     const returnFocus = view.root.querySelector('.app-header .button-secondary');
-    const { results, persistence } = store.getResults();
+    const { results, persistence } = store.getResults(DEFAULT_DIFFICULTY_ID);
     modal.open({
       title: 'Таблица лидеров',
       content: createLeaderboardContent({
@@ -64,5 +65,5 @@ function startNewGame() {
   game.restart();
 }
 
-store.getResults();
+store.getResults(DEFAULT_DIFFICULTY_ID);
 game.restart();

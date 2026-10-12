@@ -1,9 +1,9 @@
 // Final acceptance checks against the real page, using only the project's storage key.
 export async function runAcceptanceTests() {
-  const storageKey = 'memory-game.leaderboard.v1';
+  const storageKey = 'memory-game.leaderboard.v2';
   const original = localStorage.getItem(storageKey);
-  const best = Array.from({ length: 10 }, (_, completedAt) => ({ moves: 8, completedAt }));
-  const seeded = JSON.stringify(best);
+  const best = Array.from({ length: 10 }, (_, completedAt) => ({ difficultyId: 'easy', moves: 8, completedAt }));
+  const seeded = JSON.stringify({ version: 2, results: { easy: best, medium: [], hard: [], expert: [] } });
   const frame = document.createElement('iframe');
   frame.title = 'Игра для проверки приёмки';
   const passed = [];

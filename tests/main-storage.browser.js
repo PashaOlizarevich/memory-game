@@ -1,12 +1,12 @@
 // This page exercises main.js with a simulated quota failure on the project key.
 export async function runMainStorageTests() {
   const assert = (value, message) => { if (!value) throw new Error(message); };
-  const key = 'memory-game.leaderboard.v1';
+  const key = 'memory-game.leaderboard.v2';
   const originalGet = Storage.prototype.getItem;
   const originalSet = Storage.prototype.setItem;
   const storage = window.localStorage;
   const previous = originalGet.call(storage, key);
-  const seed = JSON.stringify([{ moves: 9, completedAt: 0 }]);
+  const seed = JSON.stringify({ version: 2, results: { easy: [{ difficultyId: 'easy', moves: 9, completedAt: 0 }], medium: [], hard: [], expert: [] } });
   originalSet.call(storage, key, seed);
   let writes = 0;
   try {

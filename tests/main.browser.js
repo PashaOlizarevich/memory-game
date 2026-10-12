@@ -1,8 +1,8 @@
 // Exercise the actual index.html/main.js through DOM actions and browser timers.
 export async function runMainTests() {
-  const storageKey = 'memory-game.leaderboard.v1';
+  const storageKey = 'memory-game.leaderboard.v2';
   const originalResults = localStorage.getItem(storageKey);
-  localStorage.setItem(storageKey, '[]');
+  localStorage.setItem(storageKey, JSON.stringify({ version: 2, results: { easy: [], medium: [], hard: [], expert: [] } }));
   const frame = document.createElement('iframe');
   frame.title = 'Проверяемая игра';
   const loaded = new Promise((resolve) => frame.addEventListener('load', resolve, { once: true }));
@@ -151,7 +151,7 @@ export async function runMainTests() {
     const panel = doc.querySelector('.modal-panel');
     assert(doc.querySelector('.modal-title').textContent === 'Сила памяти с вами!', 'Completion must open victory');
     assert(panel.querySelector('.victory-result').textContent === 'Ходы: 8', 'Victory must show the completed result');
-    const saved = JSON.parse(localStorage.getItem(storageKey));
+    const saved = JSON.parse(localStorage.getItem(storageKey)).results.easy;
     assert(saved.length === 1 && saved[0].moves === 8 && Number.isSafeInteger(saved[0].completedAt), 'Victory must save exactly one result');
     doc.querySelector('.modal-close').click();
     for (let index = 0; index < 2; index += 1) {
@@ -161,7 +161,7 @@ export async function runMainTests() {
       assert(rows.length === 1 && rows[0].children[1].textContent === '8', 'Leaderboard must show the latest result');
       panel.querySelector('.modal-actions button').click();
     }
-    assert(JSON.stringify(JSON.parse(localStorage.getItem(storageKey))) === JSON.stringify(saved), 'Closing and reopening must not save the victory again');
+    assert(JSON.stringify(JSON.parse(localStorage.getItem(storageKey)).results.easy) === JSON.stringify(saved), 'Closing and reopening must not save the victory again');
     passed.push('victory is saved once and repeated leaderboard views show the same result');
     checkRestart(newGame);
     passed.push('complete game, ignored finished click and restart after completion');
@@ -173,7 +173,7 @@ export async function runMainTests() {
     const expectedHtmlStyle = doc.documentElement.style.cssText;
     const expectedBodyStyle = doc.body.style.cssText;
     for (const pair of Map.groupBy(cardButtons(), pairId).values()) pair.forEach((button) => button.click());
-    assert(JSON.parse(localStorage.getItem(storageKey)).length === 2, 'A different round must save its own result');
+    assert(JSON.parse(localStorage.getItem(storageKey)).results.easy.length === 2, 'A different round must save its own result');
     assert(doc.querySelector('.app').inert && panel.contains(doc.activeElement), 'Victory must lock the game and focus its dialog');
     assert(doc.documentElement.style.overflow === 'hidden' && doc.body.style.overflow === 'hidden', 'Victory must lock both scroll surfaces');
     checkRestart(doc.querySelector('.modal-actions .button-primary'));
@@ -188,7 +188,7 @@ export async function runMainTests() {
     cardButtons()[0].click();
     checkRestart(newGame);
     for (const pair of Map.groupBy(cardButtons(), pairId).values()) pair.forEach((button) => button.click());
-    assert(JSON.parse(localStorage.getItem(storageKey)).length === 3, 'Repeated completion must save only its own result');
+    assert(JSON.parse(localStorage.getItem(storageKey)).results.easy.length === 3, 'Repeated completion must save only its own result');
     checkRestart(doc.querySelector('.modal-actions .button-primary'));
     assert(doc.querySelector('.modal-overlay').hidden && !doc.querySelector('.app').inert
       && doc.activeElement === newGame, 'Repeated victory restart must release the dialog and restore focus');
