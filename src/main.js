@@ -1,10 +1,12 @@
-import { cards, backImageUrl } from './game/cards.js';
+import { getCardsForDifficulty, backImageUrl } from './game/cards.js';
+import { DEFAULT_DIFFICULTY_ID } from './game/difficulty.js';
 import { createGame } from './game/engine.js';
 import { createAppView } from './ui/app-view.js';
 import { createModal } from './ui/modal.js';
 import { createVictoryContent, createLeaderboardContent } from './ui/modal-content.js';
 import { createLeaderboardStore } from './storage/leaderboard.js';
 
+const cards = getCardsForDifficulty(DEFAULT_DIFFICULTY_ID);
 const store = createLeaderboardStore();
 let handledRoundId = null;
 

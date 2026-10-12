@@ -1,3 +1,5 @@
+import { getDifficulty } from './difficulty.js';
+
 export const cards = [
   {
     pairId: 'astromech',
@@ -50,3 +52,23 @@ export const cards = [
 ];
 
 export const backImageUrl = './public/assets/images/cards/card-back.svg';
+
+// Level membership depends on these IDs, never on catalog insertion order.
+export const cardOrder = Object.freeze([
+  'astromech', 'protocol-droid', 'trooper-helmet', 'dark-helmet',
+  'lightsaber', 'starfighter', 'freighter', 'space-station',
+  'yoda', 'chewbacca', 'leia', 'darth-maul',
+  'luke', 'han-solo', 'boba-fett', 'ahsoka',
+  'obi-wan', 'palpatine', 'grievous', 'jawa',
+]);
+
+export function getCardsForDifficulty(difficultyId, catalog = cards) {
+  const { pairCount } = getDifficulty(difficultyId);
+  return cardOrder.slice(0, pairCount).map((pairId) => {
+    const matches = catalog.filter((card) => card.pairId === pairId);
+    if (matches.length !== 1) {
+      throw new RangeError('Difficulty requires exactly one catalog entry: ' + pairId);
+    }
+    return { ...matches[0] };
+  });
+}
