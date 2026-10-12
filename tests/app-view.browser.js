@@ -1,4 +1,7 @@
-import { cards, backImageUrl } from '../src/game/cards.js';
+import { getCardsForDifficulty, backImageUrl } from '../src/game/cards.js';
+
+// Existing game/UI contracts still exercise the default eight-pair round.
+const cards = getCardsForDifficulty('easy');
 import { createInitialState, selectCard, resolveMismatch } from '../src/game/state.js';
 import { createAppView } from '../src/ui/app-view.js';
 

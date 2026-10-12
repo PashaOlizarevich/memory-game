@@ -49,6 +49,66 @@ export const cards = [
     label: 'Космическая станция',
     imageUrl: './public/assets/images/cards/space-station.svg',
   },
+  {
+    pairId: 'yoda',
+    label: 'Йода',
+    imageUrl: './public/assets/images/cards/yoda.svg',
+  },
+  {
+    pairId: 'chewbacca',
+    label: 'Чубакка',
+    imageUrl: './public/assets/images/cards/chewbacca.svg',
+  },
+  {
+    pairId: 'leia',
+    label: 'Лея',
+    imageUrl: './public/assets/images/cards/leia.svg',
+  },
+  {
+    pairId: 'darth-maul',
+    label: 'Дарт Мол',
+    imageUrl: './public/assets/images/cards/darth-maul.svg',
+  },
+  {
+    pairId: 'luke',
+    label: 'Люк',
+    imageUrl: './public/assets/images/cards/luke.svg',
+  },
+  {
+    pairId: 'han-solo',
+    label: 'Хан Соло',
+    imageUrl: './public/assets/images/cards/han-solo.svg',
+  },
+  {
+    pairId: 'boba-fett',
+    label: 'Боба Фетт',
+    imageUrl: './public/assets/images/cards/boba-fett.svg',
+  },
+  {
+    pairId: 'ahsoka',
+    label: 'Асока',
+    imageUrl: './public/assets/images/cards/ahsoka.svg',
+  },
+  {
+    pairId: 'obi-wan',
+    label: 'Оби-Ван',
+    imageUrl: './public/assets/images/cards/obi-wan.svg',
+  },
+  {
+    pairId: 'palpatine',
+    label: 'Палпатин',
+    imageUrl: './public/assets/images/cards/palpatine.svg',
+  },
+  {
+    pairId: 'grievous',
+    label: 'Гривус',
+    imageUrl: './public/assets/images/cards/grievous.svg',
+  },
+  {
+    pairId: 'jawa',
+    label: 'Джава',
+    imageUrl: './public/assets/images/cards/jawa.svg',
+  },
 ];
 
 export const backImageUrl = './public/assets/images/cards/card-back.svg';

@@ -23,7 +23,7 @@ test('four unique immutable levels define consistent pair counts and grids', () 
 });
 
 test('easy membership survives catalog expansion and reordering without mutating input', () => {
-  const expected = cards.map(({ pairId }) => pairId);
+  const expected = cardOrder.slice(0, 8);
   const catalog = [{ pairId: 'unrelated' }, { pairId: 'yoda' }, ...cards.toReversed()];
   const before = structuredClone(catalog);
   const selected = getCardsForDifficulty('easy', catalog);
@@ -37,7 +37,7 @@ test('easy membership survives catalog expansion and reordering without mutating
 
 test('unknown or incomplete levels fail instead of returning partial or fake sets', () => {
   for (const id of ['medium', 'hard', 'expert']) {
-    assert.throws(() => getCardsForDifficulty(id), /yoda/);
+    assert.throws(() => getCardsForDifficulty(id, cards.slice(0, 8)), /yoda/);
   }
   assert.throws(() => getDifficulty('unknown'), RangeError);
   assert.throws(() => getCardsForDifficulty('unknown'), RangeError);

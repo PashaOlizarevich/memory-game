@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { cards } from '../src/game/cards.js';
+import { getCardsForDifficulty } from '../src/game/cards.js';
+
+// Existing game/UI contracts still exercise the default eight-pair round.
+const cards = getCardsForDifficulty('easy');
 import { createGame } from '../src/game/engine.js';
 
 const pairIds = cards.map((card) => card.pairId);
