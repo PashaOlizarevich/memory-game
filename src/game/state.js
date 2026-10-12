@@ -17,6 +17,7 @@ export function createInitialState({ pairIds, roundId, random = Math.random }) {
     secondCardId: null,
     moves: 0,
     matchedPairs: 0,
+    totalPairs: pairIds.length,
     completedAt: null,
   };
 }
@@ -46,7 +47,7 @@ export function selectCard(state, cardId, completedAt) {
 
     if (firstCard.pairId === selectedCard.pairId) {
       const matchedPairs = state.matchedPairs + 1;
-      const isFinished = matchedPairs === 8;
+      const isFinished = matchedPairs === state.totalPairs;
 
       return {
         state: {

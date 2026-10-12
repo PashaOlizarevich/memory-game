@@ -2,13 +2,13 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { getCardsForDifficulty } from '../src/game/cards.js';
 
-// Existing game/UI contracts still exercise the default eight-pair round.
-const cards = getCardsForDifficulty('easy');
 import { createInitialState, resolveMismatch, selectCard } from '../src/game/state.js';
 
-function startRound() {
+const cards = getCardsForDifficulty('easy');
+
+function startRound(roundCards = cards) {
   return createInitialState({
-    pairIds: cards.map((card) => card.pairId),
+    pairIds: roundCards.map((card) => card.pairId),
     roundId: 1,
     random: () => 0.5,
   });
@@ -35,68 +35,91 @@ function matchPair(state, pairId, completedAt) {
   return choose(first.state, pair[1].id, completedAt);
 }
 
-test('only the eighth matched pair finishes a round with the supplied timestamp', () => {
-  let state = startRound();
-  const completedAt = 1791190800000;
+for (const [difficultyId, pairCount] of [
+  ['easy', 8], ['medium', 12], ['hard', 16], ['expert', 20],
+]) {
+  test(difficultyId + ': a ' + pairCount * 2 + '-card round finishes only after every pair', () => {
+    const roundCards = getCardsForDifficulty(difficultyId);
+    let state = startRound(roundCards);
+    const completedAt = 1791190800000;
 
-  for (const [index, card] of cards.entries()) {
-    const result = matchPair(state, card.pairId, completedAt + index);
-    const pairCount = index + 1;
-    const isLastPair = pairCount === 8;
+    assert.equal(state.deck.length, pairCount * 2);
+    assert.equal(new Set(state.deck.map((card) => card.id)).size, pairCount * 2);
+    assert.equal(state.totalPairs, pairCount);
+    assert.equal(state.phase, 'idle');
+    assert.equal(state.moves, 0);
+    assert.equal(state.matchedPairs, 0);
+    assert.equal(state.completedAt, null);
+    assert.ok(state.deck.every((card) => card.status === 'closed'));
+    for (const card of roundCards) {
+      assert.equal(state.deck.filter((entry) => entry.pairId === card.pairId).length, 2);
+    }
 
-    assert.equal(result.kind, isLastPair ? 'finished' : 'matched');
-    assert.equal(result.state.phase, isLastPair ? 'finished' : 'idle');
-    assert.equal(result.state.moves, pairCount);
-    assert.equal(result.state.matchedPairs, pairCount);
-    assert.equal(result.state.firstCardId, null);
-    assert.equal(result.state.secondCardId, null);
-    assert.equal(result.state.completedAt, isLastPair ? completedAt + index : null);
-    assert.equal(
-      result.state.deck.filter((entry) => entry.status === 'matched').length,
-      pairCount * 2,
-    );
-    state = result.state;
-  }
+    for (const [index, card] of roundCards.entries()) {
+      const result = matchPair(state, card.pairId, completedAt + index);
+      const matchedCount = index + 1;
+      const isLastPair = matchedCount === pairCount;
 
-  const before = structuredClone(state);
-  for (const cardId of [...state.deck.map((card) => card.id), 'unknown-card']) {
-    const result = choose(state, cardId, completedAt + 1000);
-    assert.equal(result.kind, 'ignored');
-    assert.strictEqual(result.state, state);
-  }
-  assert.strictEqual(resolveMismatch(state), state);
-  assert.deepEqual(state, before);
-});
+      assert.equal(result.kind, isLastPair ? 'finished' : 'matched');
+      assert.equal(result.state.phase, isLastPair ? 'finished' : 'idle');
+      assert.equal(result.state.moves, matchedCount);
+      assert.equal(result.state.matchedPairs, matchedCount);
+      assert.equal(result.state.totalPairs, pairCount);
+      assert.equal(result.state.firstCardId, null);
+      assert.equal(result.state.secondCardId, null);
+      assert.equal(result.state.completedAt, isLastPair ? completedAt + index : null);
+      assert.equal(
+        result.state.deck.filter((entry) => entry.status === 'matched').length,
+        matchedCount * 2,
+      );
+      state = result.state;
+    }
 
-test('a mismatch adds a move without finishing, and its move remains in the final result', () => {
-  const initial = startRound();
-  const first = initial.deck[0];
-  const second = initial.deck.find((card) => card.pairId !== first.pairId);
-  const opened = choose(initial, first.id, 1000);
-  const mismatch = choose(opened.state, second.id, 2000);
+    const before = structuredClone(state);
+    for (const cardId of [...state.deck.map((card) => card.id), 'unknown-card']) {
+      const result = choose(state, cardId, completedAt + 1000);
+      assert.equal(result.kind, 'ignored');
+      assert.strictEqual(result.state, state);
+    }
+    assert.strictEqual(resolveMismatch(state), state);
+    assert.deepEqual(state, before);
+  });
+}
 
-  assert.equal(mismatch.kind, 'mismatch');
-  assert.equal(mismatch.state.phase, 'waiting-mismatch');
-  assert.equal(mismatch.state.moves, 1);
-  assert.equal(mismatch.state.matchedPairs, 0);
-  assert.equal(mismatch.state.completedAt, null);
+for (const [difficultyId, pairCount] of [
+  ['easy', 8], ['medium', 12], ['hard', 16], ['expert', 20],
+]) {
+  test(difficultyId + ': a mismatch adds one move that remains in the final result', () => {
+    const roundCards = getCardsForDifficulty(difficultyId);
+    const initial = startRound(roundCards);
+    const first = initial.deck[0];
+    const second = initial.deck.find((card) => card.pairId !== first.pairId);
+    const opened = choose(initial, first.id, 1000);
+    const mismatch = choose(opened.state, second.id, 2000);
 
-  const before = structuredClone(mismatch.state);
-  const resolved = resolveMismatch(mismatch.state);
-  assert.deepEqual(mismatch.state, before);
-  assert.equal(resolved.phase, 'idle');
-  assert.equal(resolved.moves, 1);
-  assert.equal(resolved.completedAt, null);
+    assert.equal(mismatch.kind, 'mismatch');
+    assert.equal(mismatch.state.phase, 'waiting-mismatch');
+    assert.equal(mismatch.state.moves, 1);
+    assert.equal(mismatch.state.matchedPairs, 0);
+    assert.equal(mismatch.state.completedAt, null);
 
-  let state = resolved;
-  for (const card of cards) {
-    state = matchPair(state, card.pairId, 3000).state;
-  }
-  assert.equal(state.phase, 'finished');
-  assert.equal(state.moves, 9);
-  assert.equal(state.matchedPairs, 8);
-  assert.equal(state.completedAt, 3000);
-});
+    const before = structuredClone(mismatch.state);
+    const resolved = resolveMismatch(mismatch.state);
+    assert.deepEqual(mismatch.state, before);
+    assert.equal(resolved.phase, 'idle');
+    assert.equal(resolved.moves, 1);
+    assert.equal(resolved.completedAt, null);
+
+    let state = resolved;
+    for (const card of roundCards) {
+      state = matchPair(state, card.pairId, 3000).state;
+    }
+    assert.equal(state.phase, 'finished');
+    assert.equal(state.moves, pairCount + 1);
+    assert.equal(state.matchedPairs, pairCount);
+    assert.equal(state.completedAt, 3000);
+  });
+}
 
 test('zero is preserved as a valid completion timestamp', () => {
   let state = startRound();
