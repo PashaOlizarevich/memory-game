@@ -1,5 +1,18 @@
 import { createInitialState, resolveMismatch, selectCard } from './state.js';
 
+function copyPairIds(pairIds) {
+  if (
+    !Array.isArray(pairIds) ||
+    pairIds.length === 0 ||
+    Array.from(pairIds).some((pairId) => typeof pairId !== 'string' || pairId.trim() === '') ||
+    new Set(pairIds).size !== pairIds.length
+  ) {
+    throw new TypeError('pairIds must be a non-empty array of unique non-empty strings');
+  }
+
+  return [...pairIds];
+}
+
 export function createGame({
   pairIds,
   onChange,
@@ -7,7 +20,7 @@ export function createGame({
   now = Date.now,
   delayMs = 1000,
 }) {
-  const roundPairIds = [...pairIds];
+  let roundPairIds = copyPairIds(pairIds);
   let state = null;
   let roundId = 0;
   let pendingMismatch = null;
@@ -26,12 +39,21 @@ export function createGame({
     }
   }
 
-  function restart() {
+  function restart(options) {
     if (destroyed) return;
 
+    const nextPairIds = options === undefined
+      ? roundPairIds
+      : copyPairIds(options?.pairIds);
+    const nextRoundId = roundId + 1;
+    const nextState = createInitialState({
+      pairIds: nextPairIds, roundId: nextRoundId, random,
+    });
+
     cancelMismatch();
-    roundId += 1;
-    state = createInitialState({ pairIds: roundPairIds, roundId, random });
+    roundPairIds = nextPairIds;
+    roundId = nextRoundId;
+    state = nextState;
     onChange(getSnapshot(), 'started');
   }
 

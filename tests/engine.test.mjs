@@ -28,7 +28,7 @@ function chooseMismatch(game) {
   game.choose(second.id);
 }
 
-function assertFreshRound(snapshot, previous = null) {
+function assertFreshRound(snapshot, previous = null, expectedPairIds = pairIds) {
   assert.equal(snapshot.roundId, previous === null ? 1 : previous.roundId + 1);
   assert.equal(snapshot.phase, 'idle');
   assert.equal(snapshot.moves, 0);
@@ -36,10 +36,11 @@ function assertFreshRound(snapshot, previous = null) {
   assert.equal(snapshot.firstCardId, null);
   assert.equal(snapshot.secondCardId, null);
   assert.equal(snapshot.completedAt, null);
-  assert.equal(snapshot.deck.length, 16);
-  assert.equal(new Set(snapshot.deck.map((card) => card.id)).size, 16);
+  assert.equal(snapshot.totalPairs, expectedPairIds.length);
+  assert.equal(snapshot.deck.length, expectedPairIds.length * 2);
+  assert.equal(new Set(snapshot.deck.map((card) => card.id)).size, expectedPairIds.length * 2);
   assert.ok(snapshot.deck.every((card) => card.status === 'closed'));
-  for (const pairId of pairIds) {
+  for (const pairId of expectedPairIds) {
     assert.equal(snapshot.deck.filter((card) => card.pairId === pairId).length, 2);
   }
   if (previous !== null) {
@@ -488,3 +489,120 @@ for (const action of ['restart', 'destroy']) {
     assert.ok(!kinds.includes('mismatch-resolved'));
   });
 }
+
+for (const sourceLevel of ['easy', 'medium', 'hard', 'expert']) {
+  for (const targetLevel of ['easy', 'medium', 'hard', 'expert']) {
+    test(`restart switches ${sourceLevel} to ${targetLevel} and repeats the current set`, (t) => {
+      const sourceIds = getCardsForDifficulty(sourceLevel).map((card) => card.pairId);
+      const targetIds = getCardsForDifficulty(targetLevel).map((card) => card.pairId);
+      const { game, events } = startGame(t, { pairIds: sourceIds, now: () => 1234 });
+      game.restart();
+      for (const pairId of sourceIds) {
+        const pair = game.getSnapshot().deck.filter((card) => card.pairId === pairId);
+        game.choose(pair[0].id);
+        game.choose(pair[1].id);
+      }
+      const previous = game.getSnapshot();
+      assert.equal(previous.phase, 'finished');
+      assert.equal(previous.completedAt, 1234);
+      const input = [...targetIds];
+      const count = events.length;
+      game.restart({ pairIds: input });
+      input.fill('mutated');
+      input.length = 0;
+      const switched = game.getSnapshot();
+      assertFreshRound(switched, previous, targetIds);
+      assert.equal(events.length, count + 1);
+      assert.equal(events.at(-1).kind, 'started');
+      game.choose(switched.deck[0].id);
+      assert.equal(game.getSnapshot().phase, 'one-open');
+      game.restart();
+      assertFreshRound(game.getSnapshot(), switched, targetIds);
+    });
+  }
+}
+
+test('invalid replacement leaves the round, timer and retained set intact', (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const clear = t.mock.method(globalThis, 'clearTimeout');
+  const { game, events } = startGame(t);
+  game.restart();
+  chooseMismatch(game);
+  const waiting = game.getSnapshot();
+  const count = events.length;
+  for (const invalid of [null, {}, [], { pairIds: [] }, { pairIds: 'yoda' },
+    { pairIds: ['yoda', 'yoda'] }, { pairIds: [''] }, { pairIds: [' '] },
+    { pairIds: [null] }, { pairIds: [1] }, { pairIds: Array(1) }]) {
+    assert.throws(() => game.restart(invalid), TypeError);
+    assert.deepEqual(game.getSnapshot(), waiting);
+    assert.equal(events.length, count);
+    assert.equal(clear.mock.callCount(), 0);
+  }
+  t.mock.timers.tick(999);
+  assert.deepEqual(game.getSnapshot(), waiting);
+  t.mock.timers.tick(1);
+  assert.equal(game.getSnapshot().phase, 'idle');
+  assert.equal(events.at(-1).kind, 'mismatch-resolved');
+  game.restart();
+  assertFreshRound(game.getSnapshot(), waiting);
+});
+
+test('switching sets cancels the old timer and preserves the new 1000 ms deadline', (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const schedule = t.mock.method(globalThis, 'setTimeout');
+  const clear = t.mock.method(globalThis, 'clearTimeout');
+  const { game, events } = startGame(t);
+  game.restart();
+  for (const level of ['medium', 'hard', 'expert', 'easy']) {
+    chooseMismatch(game);
+    const oldCallback = schedule.mock.calls.at(-1).arguments[0];
+    const oldTimer = schedule.mock.calls.at(-1).result;
+    const oldRound = game.getSnapshot();
+    t.mock.timers.tick(300);
+    const nextIds = getCardsForDifficulty(level).map((card) => card.pairId);
+    game.restart({ pairIds: nextIds });
+    assertFreshRound(game.getSnapshot(), oldRound, nextIds);
+    assert.deepEqual(clear.mock.calls.at(-1).arguments, [oldTimer]);
+    game.choose(game.getSnapshot().deck[0].id);
+    const firstOpen = game.getSnapshot();
+    const firstCount = events.length;
+    oldCallback();
+    assert.deepEqual(game.getSnapshot(), firstOpen);
+    assert.equal(events.length, firstCount);
+    const second = firstOpen.deck.find((card) => card.pairId !== firstOpen.deck[0].pairId);
+    game.choose(second.id);
+    const waiting = game.getSnapshot();
+    const count = events.length;
+    oldCallback();
+    assert.deepEqual(game.getSnapshot(), waiting);
+    assert.equal(events.length, count);
+    assert.equal(schedule.mock.calls.at(-1).arguments[1], 1000);
+    t.mock.timers.tick(999);
+    assert.deepEqual(game.getSnapshot(), waiting);
+    t.mock.timers.tick(1);
+    assert.equal(game.getSnapshot().phase, 'idle');
+    assert.equal(events.length, count + 1);
+  }
+});
+
+test('destroy after switching sets remains terminal and invalidates callbacks', (t) => {
+  const callbacks = [];
+  const clear = t.mock.method(globalThis, 'clearTimeout', () => {});
+  t.mock.method(globalThis, 'setTimeout', (callback) => {
+    callbacks.push(callback);
+    return callbacks.length;
+  });
+  const { game, events } = startGame(t);
+  game.restart({ pairIds: getCardsForDifficulty('expert').map((card) => card.pairId) });
+  chooseMismatch(game);
+  const last = game.getSnapshot();
+  const count = events.length;
+  game.destroy();
+  game.restart({ pairIds });
+  game.restart({ pairIds: [] });
+  game.choose(last.deck[0].id);
+  callbacks[0]();
+  assert.deepEqual(game.getSnapshot(), last);
+  assert.equal(events.length, count);
+  assert.equal(clear.mock.callCount(), 1);
+});
