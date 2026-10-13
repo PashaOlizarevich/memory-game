@@ -45,7 +45,24 @@ export async function runMainStorageTests() {
     document.querySelector('.modal-close').click();
     headerNewGame.click();
     assert(cardButtons().every((button) => button.dataset.status === 'closed' && !button.disabled), 'Storage failure must allow immediate new games');
-    return { passed: ['actual main victory, repeated rating and new rounds remain usable after quota failure'] };
+    const select = document.querySelector('#game-difficulty');
+    for (const [id, pairCount] of [['medium',12],['hard',16],['expert',20]]) {
+      select.value = id;
+      select.dispatchEvent(new Event('change', { bubbles: true }));
+      document.querySelector('.start-game').click();
+      complete();
+      assert(document.querySelector('.victory-result').textContent === 'Ходы: ' + pairCount && document.querySelector('.modal-persistence'), 'Quota failure must preserve victory for ' + id);
+      document.querySelector('.modal-close').click();
+      leaderboard.click();
+      const rating = document.querySelector('.leaderboard-difficulty');
+      assert(rating.value === id && document.querySelectorAll('tbody tr').length === 1, 'Memory result must remain isolated for ' + id);
+      rating.value = 'easy';
+      rating.dispatchEvent(new Event('change', { bubbles: true }));
+      assert(document.querySelectorAll('tbody tr').length === 3 && document.querySelector('.modal-persistence'), 'New levels must preserve earlier easy memory results');
+      document.querySelector('.modal-close').click();
+      assert(writes === 1 && originalGet.call(storage, key) === seed, 'All levels must remain in memory without persistence retries');
+    }
+    return { passed: ['actual main victory, repeated rating and new rounds remain usable after quota failure', 'all four levels retain independent session results after quota failure without retry'] };
   } finally {
     Storage.prototype.setItem = originalSet;
     if (previous === null) storage.removeItem(key);

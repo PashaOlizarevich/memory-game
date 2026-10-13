@@ -198,6 +198,13 @@ async function runAnimationTests(assert, passed) {
     // Resolve start times in the same browser frame.
     await Promise.all(effects.map((effect) => effect.ready));
     assert(Math.abs(effects[0].startTime - effects[1].startTime) < 1, 'Pair celebration was not synchronized');
+    // Keep the short celebration in its active interval while checking identity.
+    // A busy browser can finish it before the next assertion.
+    effects.forEach((effect) => {
+      effect.pause();
+      effect.currentTime = effect.effect.getTiming().duration / 2;
+    });
+    await Promise.all(effects.map((effect) => effect.ready));
     view.render(state);
     assert(matched.every((button, index) => button.querySelector('.game-card-image').getAnimations()[0] === effects[index]), 'Repeated render restarted pair celebration');
     reducedMotion.media.mediaText = 'all';

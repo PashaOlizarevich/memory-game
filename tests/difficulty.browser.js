@@ -2,6 +2,8 @@
 export async function runDifficultyTests() {
   const key = 'memory-game.leaderboard.v2';
   const previous = localStorage.getItem(key);
+  const legacyKey = 'memory-game.leaderboard.v1';
+  const previousLegacy = localStorage.getItem(legacyKey);
   localStorage.setItem(key, JSON.stringify({ version: 2, results: { easy: [], medium: [], hard: [], expert: [] } }));
   const frame = document.createElement('iframe');
   frame.title = 'Проверка сложности';
@@ -11,6 +13,12 @@ export async function runDifficultyTests() {
   const passed = [];
   const assert = (condition, message) => { if (!condition) throw new Error(message); };
   const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+  const reload = async () => {
+    const ready = new Promise((resolve) => frame.addEventListener('load', resolve, { once: true }));
+    frame.contentWindow.location.reload();
+    await ready;
+    return frame.contentDocument;
+  };
   try {
     await loaded;
     const doc = frame.contentDocument;
@@ -80,9 +88,37 @@ export async function runDifficultyTests() {
     await pause(1150);
     assert(a.dataset.status === 'closed' && b.dataset.status === 'closed' && doc.activeElement === rating && entries === doc.querySelector('.leaderboard-entries') && rating.value === 'medium', 'Mismatch must resolve behind independently selected ranking without focus loss');
     passed.push('ranking switch preserves the running timer and selector focus');
+    const beforeReload = localStorage.getItem(key);
+    const fresh = await reload();
+    assert(fresh.querySelectorAll('.game-card').length === 16 && [...fresh.querySelectorAll('.game-card')].every((card) => card.dataset.status === 'closed'), 'Reload must discard the unfinished expert round and start easy');
+    fresh.querySelector('.app-actions .button-secondary').click();
+    const freshRating = fresh.querySelector('.leaderboard-difficulty');
+    for (const [id, moves] of [['easy',8],['medium',12],['hard',16],['expert',20]]) {
+      freshRating.value = id;
+      freshRating.dispatchEvent(new Event('change', { bubbles: true }));
+      const rows = [...fresh.querySelectorAll('.leaderboard-table tbody tr')];
+      assert(rows.length === 1 && Number(rows[0].children[1].textContent) === moves, 'Reload must preserve exactly one completed result for ' + id);
+    }
+    assert(localStorage.getItem(key) === beforeReload, 'Reload and ranking reads must not write another result');
+    passed.push('real reload preserves all four rankings and discards the unfinished round');
+
+    const legacySeed = JSON.stringify([{ moves: 9, completedAt: 0 }, { moves: 8, completedAt: 1 }, { moves: 7, completedAt: 2 }]);
+    localStorage.setItem(legacyKey, legacySeed);
+    localStorage.removeItem(key);
+    const migrated = await reload();
+    migrated.querySelector('.app-actions .button-secondary').click();
+    const migration = JSON.parse(localStorage.getItem(key));
+    assert(migration.version === 2 && migration.results.easy.length === 2 && migration.results.easy[0].moves === 8 && migration.results.easy[1].moves === 9, 'Real startup must filter and sort legacy results into easy');
+    assert(['medium','hard','expert'].every((id) => migration.results[id].length === 0), 'Legacy results must not leak into other levels');
+    assert(migrated.querySelectorAll('.leaderboard-table tbody tr').length === 2 && localStorage.getItem(legacyKey) === legacySeed, 'Migration must render results and preserve v1');
+    const migratedValue = localStorage.getItem(key);
+    await reload();
+    assert(localStorage.getItem(key) === migratedValue && localStorage.getItem(legacyKey) === legacySeed, 'Second startup must not import legacy records twice');
+    passed.push('real startup migrates v1 once into easy and preserves the legacy key');
     return { passed };
   } finally {
     frame.remove();
     if (previous === null) localStorage.removeItem(key); else localStorage.setItem(key, previous);
+    if (previousLegacy === null) localStorage.removeItem(legacyKey); else localStorage.setItem(legacyKey, previousLegacy);
   }
 }
