@@ -1,5 +1,15 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
-  <g stroke="#34404D" stroke-width="7" stroke-linejoin="round" stroke-linecap="round">
-    <path fill="#EDF2F3" d="M53 229q3-62 75-62t75 62Z"/><circle cx="60" cy="108" r="30" fill="#554037"/><circle cx="196" cy="108" r="30" fill="#554037"/><path fill="#EBC4A7" d="M79 80q3-30 49-30t49 30v57q-7 37-49 37t-49-37Z"/><path fill="#554037" d="M76 91V75q6-40 52-40t52 40v16l-52-29Z"/><path fill="none" d="m114 147 14 5 14-5m-35 45 21 20 21-20"/><circle cx="104" cy="112" r="6" fill="#17232D"/><circle cx="152" cy="112" r="6" fill="#17232D"/>
+<svg id="active" xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+  <style>
+    .portrait { transform-origin: 128px 210px; }
+    .detail { transform-origin: 128px 108px; }
+    #active:target .portrait { animation: reveal 560ms ease-out 160ms both; }
+    #active:target .detail { animation: gesture 4460ms ease-in-out 720ms infinite; }
+    @keyframes reveal { from { transform: translateY(3px); } to { transform: translateY(0); } }
+    @keyframes gesture { 50% { transform: rotate(2deg); } }
+    @media (prefers-reduced-motion: reduce) { * { animation: none !important; } }
+  </style>
+  <g class="portrait">  <g stroke="#34404D" stroke-width="7" stroke-linejoin="round" stroke-linecap="round">
+    <path fill="#EDF2F3" d="M53 229q3-62 75-62t75 62Z"/><g class="detail"><circle cx="60" cy="108" r="30" fill="#554037"/></g><g class="detail"><circle cx="196" cy="108" r="30" fill="#554037"/></g><path fill="#EBC4A7" d="M79 80q3-30 49-30t49 30v57q-7 37-49 37t-49-37Z"/><path fill="#554037" d="M76 91V75q6-40 52-40t52 40v16l-52-29Z"/><path fill="none" d="m114 147 14 5 14-5m-35 45 21 20 21-20"/><circle cx="104" cy="112" r="6" fill="#17232D"/><circle cx="152" cy="112" r="6" fill="#17232D"/>
+  </g>
   </g>
 </svg>

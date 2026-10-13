@@ -149,6 +149,7 @@ export async function runAppViewTests() {
 }
 
 async function runAnimationTests(assert, passed) {
+  const cards = getCardsForDifficulty('expert');
   const view = createAppView({ cards, backImageUrl, onCard: () => {}, onNewGame: () => {} });
   const pairIds = cards.map((card) => card.pairId);
   const reducedMotion = [...document.styleSheets].flatMap((sheet) => [...sheet.cssRules])
@@ -169,8 +170,9 @@ async function runAnimationTests(assert, passed) {
     view.render(state);
     const buttons = [...view.root.querySelectorAll('.game-card')];
     assert(buttons.every((button) => !button.querySelector('.game-card-image').hasAttribute('src')), 'Untouched cards loaded animated faces');
-    const first = state.deck[0];
-    const image = buttons[0].querySelector('.game-card-image');
+    assert(buttons.length === 40, 'Animation check must use the expert field');
+    const first = state.deck.find((card) => card.pairId === 'yoda');
+    const image = buttons.find((button) => button.dataset.cardId === first.id).querySelector('.game-card-image');
     state = selectCard(state, first.id, 0).state;
     view.render(state);
     const firstScene = image.getAttribute('src');
@@ -226,7 +228,7 @@ async function runAnimationTests(assert, passed) {
       const staticDocument = await loadSvg(card.imageUrl);
       assert(staticDocument.documentElement.getAnimations({ subtree: true }).length === 0, `Static SVG is animated: ${card.pairId}`);
     }
-    passed.push('all eight SVG actions render, static variants and internal reduced motion');
+    passed.push('all twenty SVG actions render, static variants and internal reduced motion');
   } finally {
     reducedMotion.media.mediaText = originalMedia;
     frame.remove();

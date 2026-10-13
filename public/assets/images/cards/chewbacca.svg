@@ -1,5 +1,15 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
-  <g stroke="#34404D" stroke-width="7" stroke-linejoin="round" stroke-linecap="round">
-    <path fill="#8A5D3B" d="M52 230 60 81q2-42 68-42t68 42l8 149Z"/><path fill="#B48552" d="m77 73 15-13 11 19 25-17 25 17 11-19 15 13-8 87-25 24h-36l-25-24Z"/><path fill="#382D27" d="m99 120 29-10 29 10-10 24h-38Z"/><path fill="#FFFFFF" d="M105 149h46l-8 14h-30Z"/><path fill="#4D3C32" d="m63 210 113-99 16 20-113 99"/><path stroke="#D2D9DC" d="m97 188 8 10m13-29 8 10m13-29 8 10m13-29 8 10"/><circle cx="100" cy="99" r="6" fill="#17232D"/><circle cx="156" cy="99" r="6" fill="#17232D"/>
+<svg id="active" xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+  <style>
+    .portrait { transform-origin: 128px 210px; }
+    .detail { transform-origin: 128px 155px; }
+    #active:target .portrait { animation: reveal 560ms ease-out 160ms both; }
+    #active:target .detail { animation: gesture 4330ms ease-in-out 720ms infinite; }
+    @keyframes reveal { from { transform: translateY(3px); } to { transform: translateY(0); } }
+    @keyframes gesture { 50% { transform: rotate(-2deg); } }
+    @media (prefers-reduced-motion: reduce) { * { animation: none !important; } }
+  </style>
+  <g class="portrait">  <g stroke="#34404D" stroke-width="7" stroke-linejoin="round" stroke-linecap="round">
+    <path fill="#8A5D3B" d="M52 230 60 81q2-42 68-42t68 42l8 149Z"/><path fill="#B48552" d="m77 73 15-13 11 19 25-17 25 17 11-19 15 13-8 87-25 24h-36l-25-24Z"/><path fill="#382D27" d="m99 120 29-10 29 10-10 24h-38Z"/><g class="detail"><path fill="#FFFFFF" d="M105 149h46l-8 14h-30Z"/></g><path fill="#4D3C32" d="m63 210 113-99 16 20-113 99"/><path stroke="#D2D9DC" d="m97 188 8 10m13-29 8 10m13-29 8 10m13-29 8 10"/><circle cx="100" cy="99" r="6" fill="#17232D"/><circle cx="156" cy="99" r="6" fill="#17232D"/>
+  </g>
   </g>
 </svg>

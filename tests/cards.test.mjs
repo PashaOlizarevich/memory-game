@@ -12,8 +12,7 @@ test('catalog contains twenty unique labeled images and preserves the original e
   assert.equal(new Set(cards.map(({ label }) => label)).size, 20);
   assert.equal(new Set(cards.map(({ imageUrl }) => imageUrl)).size, 20);
   assert.ok(cards.every(({ label }) => typeof label === 'string' && label.trim()));
-  assert.ok(cards.slice(0, 8).every(({ animated }) => animated === true));
-  assert.ok(cards.slice(8).every(({ animated }) => !animated));
+  assert.ok(cards.every(({ animated }) => animated === true));
 });
 
 test('all four card sets have unique fixed nested membership regardless of catalog order', () => {
@@ -31,7 +30,7 @@ test('all four card sets have unique fixed nested membership regardless of catal
   }
 });
 
-test('every card resource exists and new character SVGs are standalone static distinct images', async () => {
+test('every card resource exists with state-gated animation and internal reduced motion', async () => {
   const images = [];
   for (const [index, card] of cards.entries()) {
     assert.match(card.imageUrl, /^\.\/public\/assets\/images\/cards\/[a-z-]+\.svg$/);
@@ -40,7 +39,15 @@ test('every card resource exists and new character SVGs are standalone static di
     assert.match(svg, /viewBox="0 0 256 256"/);
     assert.match(svg, /<path\s/);
     assert.doesNotMatch(svg, /<script\b|<foreignObject\b|(?:href|src)="https?:/i);
-    if (index >= 8) assert.doesNotMatch(svg, /<animate\b|<animateTransform\b|@keyframes|animation\s*:/i);
+    assert.match(svg, /id="active"/);
+    assert.match(svg, /#active:target/);
+    assert.match(svg, /@media\s*\(prefers-reduced-motion:\s*reduce\)/);
+    assert.match(svg, /animation:\s*none\s*!important/);
+    assert.doesNotMatch(svg, /<animate\b|<animateTransform\b/i);
+    if (index >= 8) {
+      assert.match(svg, /class="detail"/);
+      assert.match(svg, /class="portrait"/);
+    }
     images.push(svg);
   }
   assert.equal(new Set(images).size, 20);
