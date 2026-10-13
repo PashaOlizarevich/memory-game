@@ -56,7 +56,7 @@ export async function runAcceptanceTests() {
     closeWindow(method);
     assert(overlay.hidden && !doc.querySelector('.app').inert, `${kind} ${method} must close and release the game`);
     assert(cards().every((button, index) => button === deck[index]) && boardState() === state, `${kind} ${method} must preserve the finished board and counters`);
-    assert(doc.activeElement === doc.querySelector(kind === 'victory' ? '.app-header .button-primary' : '.app-header .button-secondary'), `${kind} ${method} must restore trigger focus`);
+    assert(doc.activeElement === doc.querySelector(kind === 'victory' ? '.app-actions .button-primary' : '.app-header .button-secondary'), `${kind} ${method} must restore trigger focus`);
     unchangedRating();
   };
 
@@ -92,14 +92,14 @@ export async function runAcceptanceTests() {
       assert(doc.querySelectorAll('tbody tr').length === 10, 'Actual leaderboard must show the full best ten');
       checkWindowAndClose('leaderboard', method);
       if (method !== methods.at(-1)) {
-        doc.querySelector('.app-header .button-primary').click();
+        doc.querySelector('.app-actions .button-primary').click();
         finishPairs();
         assert(doc.querySelector('.victory-result').textContent === 'Ходы: 8', 'Later round must show its own eight-move result');
       }
     }
     passed.push('both actual windows preserve content clicks and close through header, footer, backdrop and Escape without changing board or ranking');
 
-    doc.querySelector('.app-header .button-primary').click();
+    doc.querySelector('.app-actions .button-primary').click();
     cards()[0].click();
     assert(cards().filter((button) => button.dataset.status === 'open').length === 1, 'Reload scenario must begin with an unfinished selection');
     unchangedRating();

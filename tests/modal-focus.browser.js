@@ -11,7 +11,13 @@ export function runModalFocusTests() {
   fallback.textContent = 'Новая игра';
   const trigger = document.createElement('button');
   trigger.textContent = 'Открыть рейтинг';
-  header.append(fallback, trigger);
+  const start = document.createElement('button');
+  start.className = 'button button-primary start-game';
+  start.textContent = 'Начать игру';
+  const actions = document.createElement('div');
+  actions.className = 'app-actions';
+  actions.append(fallback, trigger);
+  header.append(start, actions);
   backgroundRoot.append(header);
   const outside = document.createElement('button');
   outside.textContent = 'Внешняя кнопка';

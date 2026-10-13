@@ -23,7 +23,7 @@ export async function runMainStorageTests() {
       const groups = Map.groupBy(cardButtons(), (button) => button.dataset.cardId.split(':')[1]);
       for (const pair of groups.values()) pair.forEach((button) => button.click());
     };
-    const headerNewGame = document.querySelector('.app-header .button-primary');
+    const headerNewGame = document.querySelector('.app-actions .button-primary');
     const leaderboard = document.querySelector('.app-header .button-secondary');
     complete();
     assert(document.querySelector('.victory-result').textContent === 'Ходы: 8', 'Quota failure must preserve victory');

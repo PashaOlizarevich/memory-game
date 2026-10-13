@@ -19,7 +19,7 @@ export async function runMainTests() {
     const doc = frame.contentDocument;
     const cardButtons = () => [...doc.querySelectorAll('.game-card')];
     const counters = () => [...doc.querySelectorAll('.game-counter')].map((node) => node.textContent);
-    const newGame = doc.querySelector('.button-primary');
+    const newGame = doc.querySelector('.app-actions .button-primary');
     const pairId = (button) => button.dataset.cardId.split(':')[1];
     const closed = () => cardButtons().filter((button) => button.dataset.status === 'closed');
     const checkStart = () => {

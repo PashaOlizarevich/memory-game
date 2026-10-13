@@ -1,3 +1,4 @@
+import { difficulties, DEFAULT_DIFFICULTY_ID, getDifficulty } from '../game/difficulty.js';
 import { createMusicControl } from './music-control.js';
 import { createCrawlBackground } from './crawl-background.js';
 
@@ -9,7 +10,7 @@ function isCurrentImage(image) {
   return image.currentSrc.split('#')[0] === image.src.split('#')[0];
 }
 
-export function createAppView({ cards, backImageUrl, onCard, onNewGame, onLeaderboard, musicUrl }) {
+export function createAppView({ cards, backImageUrl, onCard, onNewGame, onLeaderboard, onStartGame, musicUrl }) {
   const cardCatalog = new Map(cards.map((card) => [card.pairId, { ...card }]));
   const listeners = new AbortController();
   const root = document.createElement('main');
@@ -34,7 +35,28 @@ export function createAppView({ cards, backImageUrl, onCard, onNewGame, onLeader
   actions.append(newGameButton, leaderboardButton);
   const music = musicUrl ? createMusicControl({ source: musicUrl }) : null;
   if (music) actions.append(music.root);
-  header.append(title, actions);
+  const difficultyControls = document.createElement('div');
+  difficultyControls.className = 'difficulty-controls';
+  const difficultyLabel = document.createElement('label');
+  difficultyLabel.textContent = 'Сложность';
+  const difficultySelect = document.createElement('select');
+  difficultySelect.className = 'difficulty-select';
+  difficultySelect.id = 'game-difficulty';
+  difficultyLabel.htmlFor = difficultySelect.id;
+  for (const difficulty of difficulties) {
+    const option = document.createElement('option');
+    option.value = difficulty.id;
+    option.textContent = `${difficulty.label} — ${difficulty.pairCount * 2}`;
+    difficultySelect.append(option);
+  }
+  difficultySelect.value = DEFAULT_DIFFICULTY_ID;
+  const startGameButton = document.createElement('button');
+  startGameButton.type = 'button';
+  startGameButton.className = 'button button-primary start-game';
+  startGameButton.textContent = 'Начать игру';
+  startGameButton.disabled = typeof onStartGame !== 'function';
+  difficultyControls.append(difficultyLabel, difficultySelect, startGameButton);
+  header.append(title, difficultyControls, actions);
 
   const counters = document.createElement('div');
   counters.className = 'game-counters';
@@ -46,7 +68,10 @@ export function createAppView({ cards, backImageUrl, onCard, onNewGame, onLeader
   const pairs = document.createElement('p');
   pairs.className = 'game-counter';
   pairs.textContent = 'Пары: 0 / 8';
-  counters.append(moves, pairs);
+  const activeLevel = document.createElement('p');
+  activeLevel.className = 'active-difficulty';
+  activeLevel.textContent = 'Уровень: Лёгкий';
+  counters.append(activeLevel, moves, pairs);
 
   const instruction = document.createElement('p');
   instruction.className = 'game-instruction';
@@ -161,14 +186,20 @@ export function createAppView({ cards, backImageUrl, onCard, onNewGame, onLeader
     board.replaceChildren(fragment);
   }
 
-  function render(snapshot) {
+  function render(snapshot, difficultyId = DEFAULT_DIFFICULTY_ID) {
     if (destroyed) return;
     if (roundId !== snapshot.roundId) {
       createDeck(snapshot.deck);
       roundId = snapshot.roundId;
     }
+    const difficulty = getDifficulty(difficultyId);
+    board.style.setProperty('--board-columns', difficulty.columns);
+    board.style.setProperty('--board-max-width', `${difficulty.columns * 140}px`);
+    board.dataset.difficulty = difficultyId;
+    const levelText = `Уровень: ${difficulty.label}`;
+    if (activeLevel.textContent !== levelText) activeLevel.textContent = levelText;
     const movesText = `Ходы: ${snapshot.moves}`;
-    const pairsText = `Пары: ${snapshot.matchedPairs} / 8`;
+    const pairsText = `Пары: ${snapshot.matchedPairs} / ${snapshot.totalPairs}`;
     if (moves.textContent !== movesText) moves.textContent = movesText;
     if (pairs.textContent !== pairsText) pairs.textContent = pairsText;
     const blocked = snapshot.phase === 'waiting-mismatch' || snapshot.phase === 'finished';
@@ -200,6 +231,7 @@ export function createAppView({ cards, backImageUrl, onCard, onNewGame, onLeader
     });
   }
 
+  startGameButton.addEventListener('click', () => onStartGame?.(difficultySelect.value), { signal: listeners.signal });
   newGameButton.addEventListener('click', () => onNewGame(), { signal: listeners.signal });
   if (typeof onLeaderboard === 'function') {
     leaderboardButton.addEventListener('click', () => onLeaderboard(), { signal: listeners.signal });

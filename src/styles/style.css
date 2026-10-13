@@ -71,7 +71,8 @@ button:disabled {
   cursor: default;
 }
 
-button:focus-visible {
+button:focus-visible,
+select:focus-visible {
   outline: 3px solid var(--color-accent);
   outline-offset: 3px;
 }
@@ -83,7 +84,7 @@ button:focus-visible {
   flex-direction: column;
   gap: var(--space-5);
   width: 100%;
-  max-width: 960px;
+  max-width: 1200px;
   margin-inline: auto;
   padding: var(--space-6);
 }
@@ -247,10 +248,10 @@ button:focus-visible {
 
 .game-board {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(var(--board-columns, 4), minmax(0, 1fr));
   gap: var(--space-3);
   width: 100%;
-  max-width: 560px;
+  max-width: var(--board-max-width, 560px);
   margin-inline: auto;
 }
 
@@ -644,4 +645,36 @@ button:focus-visible {
     transition: none !important;
     scroll-behavior: auto !important;
   }
+}
+
+.difficulty-controls, .leaderboard-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+.difficulty-select {
+  min-width: 0;
+  max-width: 100%;
+  min-height: 44px;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+}
+.active-difficulty {
+  grid-column: 1 / -1;
+  margin: 0;
+  text-align: center;
+  color: var(--color-accent);
+}
+.leaderboard-controls { margin-bottom: var(--space-4); }
+.victory-difficulty { margin: var(--space-3) 0 0; }
+@media (max-width: 767px) {
+  .game-board { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .difficulty-controls { width: 100%; }
+  .difficulty-controls .difficulty-select { flex: 1; }
 }

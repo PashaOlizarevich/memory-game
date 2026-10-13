@@ -154,7 +154,7 @@ export function createModal({ backgroundRoot }) {
     restoreBackground();
     if (isAvailable(returnTarget)) returnTarget.focus({ preventScroll: true });
     if (document.activeElement !== returnTarget || !isAvailable(returnTarget)) {
-      const fallback = backgroundRoot.querySelector('.app-header .button-primary');
+      const fallback = backgroundRoot.querySelector('.app-actions .button-primary');
       if (isAvailable(fallback)) fallback.focus({ preventScroll: true });
     }
     returnTarget = null;
